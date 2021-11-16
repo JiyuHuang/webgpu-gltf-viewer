@@ -25,6 +25,10 @@ module.exports = {
         test: /\.wgsl/,
         type: 'asset/source',
       },
+      {
+        test: /\.(png|svg|jpg|jpeg|gif)$/i,
+        type: 'asset/resource',
+      },
     ],
   },
   resolve: {
