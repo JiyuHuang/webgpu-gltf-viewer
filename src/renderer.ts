@@ -3,26 +3,24 @@ import loadGltf from './gltf-loader';
 import vert from './shaders/standard.vert.wgsl';
 import frag from './shaders/standard.frag.wgsl';
 
-function getTransformationMatrix(width: number, height: number) {
-  const modelMatrix = mat4.create();
-  mat4.scale(modelMatrix, mat4.create(), vec3.fromValues(0.03, 0.03, 0.03));
+function modelMatrix() {
+  const mat = mat4.create();
+  mat4.scale(mat, mat, vec3.fromValues(0.03, 0.03, 0.03));
+  const now = Date.now() / 1000;
+  mat4.rotate(mat, mat, 1, vec3.fromValues(Math.sin(now), Math.cos(now), 0));
+  return mat;
+}
 
+function getTransformationMatrix(width: number, height: number) {
   const aspect = width / height;
   const projectionMatrix = mat4.create();
   mat4.perspective(projectionMatrix, (2 * Math.PI) / 5, aspect, 1, 100.0);
 
   const viewMatrix = mat4.create();
   mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, -1, -7));
-  const now = Date.now() / 1000;
-  mat4.rotate(
-    viewMatrix,
-    viewMatrix,
-    1,
-    vec3.fromValues(Math.sin(now), Math.cos(now), 0)
-  );
 
   const modelView = mat4.create();
-  mat4.multiply(modelView, viewMatrix, modelMatrix);
+  mat4.multiply(modelView, viewMatrix, modelMatrix());
 
   const modelViewProjectionMatrix = mat4.create();
   mat4.multiply(modelViewProjectionMatrix, projectionMatrix, modelView);
@@ -66,11 +64,16 @@ async function render(canvas: HTMLCanvasElement) {
       },
       {
         binding: 1,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {},
+      },
+      {
+        binding: 2,
         visibility: GPUShaderStage.FRAGMENT,
         sampler: {},
       },
       {
-        binding: 2,
+        binding: 3,
         visibility: GPUShaderStage.FRAGMENT,
         texture: {},
       },
@@ -181,6 +184,12 @@ async function render(canvas: HTMLCanvasElement) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
   });
 
+  let modelMat: Float32Array;
+  const modelMatBuf = device.createBuffer({
+    size: 4 * 4 * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
+  });
+
   const uniformBindGroup = device.createBindGroup({
     layout: bindGroupLayout,
     entries: [
@@ -192,6 +201,12 @@ async function render(canvas: HTMLCanvasElement) {
       },
       {
         binding: 1,
+        resource: {
+          buffer: modelMatBuf,
+        },
+      },
+      {
+        binding: 2,
         resource: device.createSampler({
           addressModeU: 'repeat',
           addressModeV: 'repeat',
@@ -200,7 +215,7 @@ async function render(canvas: HTMLCanvasElement) {
         }),
       },
       {
-        binding: 2,
+        binding: 3,
         resource: modelTex.createView(),
       },
     ],
@@ -214,6 +229,15 @@ async function render(canvas: HTMLCanvasElement) {
       modelViewProj.buffer,
       modelViewProj.byteOffset,
       modelViewProj.byteLength
+    );
+
+    modelMat = modelMatrix() as Float32Array;
+    device!.queue.writeBuffer(
+      modelMatBuf,
+      0,
+      modelMat.buffer,
+      modelMat.byteOffset,
+      modelMat.byteLength
     );
 
     const commandEncoder = device!.createCommandEncoder();
