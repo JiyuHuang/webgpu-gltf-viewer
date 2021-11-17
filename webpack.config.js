@@ -10,9 +10,11 @@ module.exports = {
       template: 'src/index.html',
     }),
   ],
-  devtool: 'eval-source-map',
+  devtool: 'inline-source-map',
   devServer: {
-    static: './dist',
+    static: {
+      directory: path.join(__dirname, 'public'),
+    },
   },
   module: {
     rules: [

@@ -1,18 +1,18 @@
 import { vec3, mat4 } from 'gl-matrix';
-
+import loadGltf from './gltf-loader';
 import vert from './shaders/standard.vert.wgsl';
 import frag from './shaders/standard.frag.wgsl';
 
-import * as cube from './meshes/cube';
-import tex from './textures/duck.png';
-
 function getTransformationMatrix(width: number, height: number) {
+  const modelMatrix = mat4.create();
+  mat4.scale(modelMatrix, mat4.create(), vec3.fromValues(0.03, 0.03, 0.03));
+
   const aspect = width / height;
   const projectionMatrix = mat4.create();
   mat4.perspective(projectionMatrix, (2 * Math.PI) / 5, aspect, 1, 100.0);
 
   const viewMatrix = mat4.create();
-  mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, 0, -4));
+  mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, -1, -7));
   const now = Date.now() / 1000;
   mat4.rotate(
     viewMatrix,
@@ -21,13 +21,18 @@ function getTransformationMatrix(width: number, height: number) {
     vec3.fromValues(Math.sin(now), Math.cos(now), 0)
   );
 
+  const modelView = mat4.create();
+  mat4.multiply(modelView, viewMatrix, modelMatrix);
+
   const modelViewProjectionMatrix = mat4.create();
-  mat4.multiply(modelViewProjectionMatrix, projectionMatrix, viewMatrix);
+  mat4.multiply(modelViewProjectionMatrix, projectionMatrix, modelView);
 
   return modelViewProjectionMatrix as Float32Array;
 }
 
 async function render(canvas: HTMLCanvasElement) {
+  const model = await loadGltf('models/Duck/Duck.gltf');
+
   const entry = navigator.gpu;
   if (!entry) {
     const errorMsg = document.createElement('p');
@@ -42,13 +47,14 @@ async function render(canvas: HTMLCanvasElement) {
     throw new Error('Failed to initialize WebGPU API.');
   }
   const contextFormat = context.getPreferredFormat(adapter!);
+  const presentationSize = [
+    canvas.clientWidth * devicePixelRatio,
+    canvas.clientHeight * devicePixelRatio,
+  ];
   context.configure({
     device,
     format: contextFormat,
-    size: [
-      canvas.clientWidth * devicePixelRatio,
-      canvas.clientHeight * devicePixelRatio,
-    ],
+    size: presentationSize,
   });
 
   const bindGroupLayout = device.createBindGroupLayout({
@@ -56,7 +62,7 @@ async function render(canvas: HTMLCanvasElement) {
       {
         binding: 0,
         visibility: GPUShaderStage.VERTEX,
-        buffer: { type: 'uniform' },
+        buffer: {},
       },
       {
         binding: 1,
@@ -71,6 +77,22 @@ async function render(canvas: HTMLCanvasElement) {
     ],
   });
 
+  function vertBufLayout(
+    shaderLocation: number,
+    n: number
+  ): GPUVertexBufferLayout {
+    return {
+      attributes: [
+        {
+          shaderLocation,
+          offset: 0,
+          format: `float32x${n}` as GPUVertexFormat,
+        },
+      ],
+      arrayStride: 4 * n,
+    };
+  }
+
   const pipeline = device.createRenderPipeline({
     layout: device.createPipelineLayout({
       bindGroupLayouts: [bindGroupLayout],
@@ -78,28 +100,7 @@ async function render(canvas: HTMLCanvasElement) {
     vertex: {
       module: device.createShaderModule({ code: vert }),
       entryPoint: 'main',
-      buffers: [
-        {
-          attributes: [
-            {
-              shaderLocation: 0,
-              offset: cube.cubePosOffset,
-              format: 'float32x4',
-            },
-            {
-              shaderLocation: 1,
-              offset: cube.cubeColOffset,
-              format: 'float32x4',
-            },
-            {
-              shaderLocation: 2,
-              offset: cube.cubeUVOffset,
-              format: 'float32x2',
-            },
-          ],
-          arrayStride: cube.cubeVertSize,
-        },
-      ],
+      buffers: [vertBufLayout(0, 3), vertBufLayout(1, 3), vertBufLayout(2, 2)],
     },
     fragment: {
       module: device.createShaderModule({ code: frag }),
@@ -110,32 +111,68 @@ async function render(canvas: HTMLCanvasElement) {
       topology: 'triangle-list',
       cullMode: 'back',
     },
+    depthStencil: {
+      depthWriteEnabled: true,
+      depthCompare: 'less',
+      format: 'depth24plus',
+    },
   });
 
-  const vertBuf = device.createBuffer({
-    size: cube.cubeVerts.byteLength,
-    usage: GPUBufferUsage.VERTEX,
-    mappedAtCreation: true,
-  });
-  new Float32Array(vertBuf.getMappedRange()).set(cube.cubeVerts);
-  vertBuf.unmap();
+  const renderPassDesc: GPURenderPassDescriptor = {
+    colorAttachments: [
+      {
+        view: context!.getCurrentTexture().createView(),
+        loadValue: { r: 0, g: 0, b: 0, a: 1 },
+        storeOp: 'store',
+      },
+    ],
+    depthStencilAttachment: {
+      view: device
+        .createTexture({
+          size: presentationSize,
+          format: 'depth24plus',
+          usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        })
+        .createView(),
 
-  const texImg = document.createElement('img');
-  texImg.src = tex;
-  await texImg.decode();
-  const texImgBitmap = await createImageBitmap(texImg);
-  const cubeTex = device.createTexture({
-    size: [texImgBitmap.width, texImgBitmap.height, 1],
+      depthLoadValue: 1.0,
+      depthStoreOp: 'store',
+      stencilLoadValue: 0,
+      stencilStoreOp: 'store',
+    },
+  };
+
+  function createBuffer(array: Float32Array | Uint16Array, usage: number) {
+    const buffer = device!.createBuffer({
+      size: (array.byteLength + 3) & ~3, // eslint-disable-line no-bitwise
+      usage,
+      mappedAtCreation: true,
+    });
+    const writeArary =
+      array instanceof Uint16Array
+        ? new Uint16Array(buffer.getMappedRange())
+        : new Float32Array(buffer.getMappedRange());
+    writeArary.set(array);
+    buffer.unmap();
+    return buffer;
+  }
+  const posBuf = createBuffer(model.posBuf, GPUBufferUsage.VERTEX);
+  const norBuf = createBuffer(model.norBuf, GPUBufferUsage.VERTEX);
+  const uvBuf = createBuffer(model.uvBuf, GPUBufferUsage.VERTEX);
+  const idxBuf = createBuffer(model.idxBuf, GPUBufferUsage.INDEX);
+
+  const modelTex = device.createTexture({
+    size: [model.texBitmap.width, model.texBitmap.height, 1],
     format: 'rgba8unorm',
     usage:
-      GPUTextureUsage.TEXTURE_BINDING |
-      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
+      GPUTextureUsage.COPY_DST | // eslint-disable-line no-bitwise
       GPUTextureUsage.RENDER_ATTACHMENT,
   });
   device.queue.copyExternalImageToTexture(
-    { source: texImgBitmap },
-    { texture: cubeTex },
-    [texImgBitmap.width, texImgBitmap.height]
+    { source: model.texBitmap },
+    { texture: modelTex },
+    [model.texBitmap.width, model.texBitmap.height]
   );
 
   let modelViewProj: Float32Array;
@@ -156,13 +193,15 @@ async function render(canvas: HTMLCanvasElement) {
       {
         binding: 1,
         resource: device.createSampler({
+          addressModeU: 'repeat',
+          addressModeV: 'repeat',
           magFilter: 'linear',
           minFilter: 'linear',
         }),
       },
       {
         binding: 2,
-        resource: cubeTex.createView(),
+        resource: modelTex.createView(),
       },
     ],
   });
@@ -178,19 +217,23 @@ async function render(canvas: HTMLCanvasElement) {
     );
 
     const commandEncoder = device!.createCommandEncoder();
-    const passEncoder = commandEncoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: context!.getCurrentTexture().createView(),
-          loadValue: { r: 0, g: 0, b: 0, a: 1 },
-          storeOp: 'store',
-        },
-      ],
-    });
+    renderPassDesc.colorAttachments = [
+      {
+        view: context!.getCurrentTexture().createView(),
+        loadValue: { r: 0, g: 0, b: 0, a: 1 },
+        storeOp: 'store',
+      },
+    ];
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDesc);
     passEncoder.setPipeline(pipeline);
-    passEncoder.setVertexBuffer(0, vertBuf);
+    passEncoder.setVertexBuffer(0, posBuf);
+    passEncoder.setVertexBuffer(1, norBuf);
+    passEncoder.setVertexBuffer(2, uvBuf);
+    passEncoder.setIndexBuffer(idxBuf, 'uint16');
     passEncoder.setBindGroup(0, uniformBindGroup);
-    passEncoder.draw(cube.cubeVertCount);
+    passEncoder.drawIndexed(
+      model.idxBuf.byteLength / Uint16Array.BYTES_PER_ELEMENT
+    );
     passEncoder.endPass();
     device!.queue.submit([commandEncoder.finish()]);
 
