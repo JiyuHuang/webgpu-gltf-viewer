@@ -1,44 +1,45 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-module.exports = {
-  mode: 'development',
-  entry: './src/index.ts',
-  plugins: [
-    new HtmlWebpackPlugin({
-      title: 'WebGPU glTF 2.0 viewer',
-      template: 'src/index.html',
-    }),
-  ],
-  devtool: 'inline-source-map',
-  devServer: {
-    static: {
-      directory: path.join(__dirname, 'public'),
-    },
-  },
-  module: {
-    rules: [
-      {
-        test: /\.tsx?$/,
-        use: 'ts-loader',
-        exclude: /node_modules/,
-      },
-      {
-        test: /\.wgsl/,
-        type: 'asset/source',
-      },
-      {
-        test: /\.(png|svg|jpg|jpeg|gif)$/i,
-        type: 'asset/resource',
-      },
+module.exports = (env, argv) => {
+  const isProduction = argv.mode && argv.mode == 'production';
+  return {
+    mode: isProduction ? 'production' : 'development',
+    entry: './src/index.ts',
+    plugins: [
+      new HtmlWebpackPlugin({
+        title: 'WebGPU glTF 2.0 viewer',
+        template: 'src/index.html',
+      }),
     ],
-  },
-  resolve: {
-    extensions: ['.tsx', '.ts', '.js'],
-  },
-  output: {
-    filename: 'main.js',
-    path: path.resolve(__dirname, 'dist'),
-    clean: true,
-  },
+    devtool: 'inline-source-map',
+    devServer: {
+      static: {
+        directory: path.join(__dirname, 'public'),
+        publicPath: '/public',
+      },
+    },
+    module: {
+      rules: [
+        {
+          test: /\.tsx?$/,
+          use: 'ts-loader',
+          exclude: /node_modules/,
+        },
+        {
+          test: /\.wgsl/,
+          type: 'asset/source',
+        },
+      ],
+    },
+    resolve: {
+      extensions: ['.tsx', '.ts', '.js'],
+    },
+    output: {
+      filename: 'main.js',
+      path: path.resolve(__dirname, 'dist'),
+      publicPath: isProduction ? '/webgpu-gltf-viewer/' : '/',
+      clean: true,
+    },
+  };
 };

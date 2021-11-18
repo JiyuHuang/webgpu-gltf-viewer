@@ -29,7 +29,7 @@ function getTransformationMatrix(width: number, height: number) {
 }
 
 async function render(canvas: HTMLCanvasElement) {
-  const model = await loadGltf('models/Duck/Duck.gltf');
+  const model = await loadGltf('public/models/Duck/Duck.gltf');
 
   const entry = navigator.gpu;
   if (!entry) {
