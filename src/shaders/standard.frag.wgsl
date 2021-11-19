@@ -1,5 +1,5 @@
-[[group(0), binding(2)]] var texSampler: sampler;
-[[group(0), binding(3)]] var tex: texture_2d<f32>;
+[[group(0), binding(1)]] var texSampler: sampler;
+[[group(0), binding(2)]] var tex: texture_2d<f32>;
 
 [[stage(fragment)]]
 fn main([[location(0)]] normal: vec3<f32>,

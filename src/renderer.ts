@@ -3,7 +3,7 @@ import loadGltf from './gltf-loader';
 import vert from './shaders/standard.vert.wgsl';
 import frag from './shaders/standard.frag.wgsl';
 
-function modelMatrix() {
+function getModelMatrix() {
   const mat = mat4.create();
   mat4.scale(mat, mat, vec3.fromValues(0.03, 0.03, 0.03));
   const now = Date.now() / 1000;
@@ -11,25 +11,20 @@ function modelMatrix() {
   return mat;
 }
 
-function getTransformationMatrix(width: number, height: number) {
+function getViewProjMatrix(width: number, height: number) {
   const aspect = width / height;
   const projectionMatrix = mat4.create();
   mat4.perspective(projectionMatrix, (2 * Math.PI) / 5, aspect, 1, 100.0);
-
   const viewMatrix = mat4.create();
   mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, -1, -7));
-
-  const modelView = mat4.create();
-  mat4.multiply(modelView, viewMatrix, modelMatrix());
-
-  const modelViewProjectionMatrix = mat4.create();
-  mat4.multiply(modelViewProjectionMatrix, projectionMatrix, modelView);
-
-  return modelViewProjectionMatrix as Float32Array;
+  const viewProj = mat4.create();
+  mat4.multiply(viewProj, projectionMatrix, viewMatrix);
+  return viewProj;
 }
 
-async function render(canvas: HTMLCanvasElement) {
-  const model = await loadGltf('public/models/Duck/Duck.gltf');
+async function render(canvas: HTMLCanvasElement, url: string) {
+  const model = await loadGltf(url);
+  const viewProj = getViewProjMatrix(canvas.width, canvas.height);
 
   const entry = navigator.gpu;
   if (!entry) {
@@ -64,16 +59,11 @@ async function render(canvas: HTMLCanvasElement) {
       },
       {
         binding: 1,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {},
-      },
-      {
-        binding: 2,
         visibility: GPUShaderStage.FRAGMENT,
         sampler: {},
       },
       {
-        binding: 3,
+        binding: 2,
         visibility: GPUShaderStage.FRAGMENT,
         texture: {},
       },
@@ -178,15 +168,8 @@ async function render(canvas: HTMLCanvasElement) {
     [model.texBitmap.width, model.texBitmap.height]
   );
 
-  let modelViewProj: Float32Array;
-  const modelViewProjBuf = device.createBuffer({
-    size: 4 * 4 * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
-  });
-
-  let modelMat: Float32Array;
-  const modelMatBuf = device.createBuffer({
-    size: 4 * 4 * 4,
+  const transformBuffer = device.createBuffer({
+    size: 4 * 4 * 4 * 3,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
   });
 
@@ -196,17 +179,11 @@ async function render(canvas: HTMLCanvasElement) {
       {
         binding: 0,
         resource: {
-          buffer: modelViewProjBuf,
+          buffer: transformBuffer,
         },
       },
       {
         binding: 1,
-        resource: {
-          buffer: modelMatBuf,
-        },
-      },
-      {
-        binding: 2,
         resource: device.createSampler({
           addressModeU: 'repeat',
           addressModeV: 'repeat',
@@ -215,30 +192,34 @@ async function render(canvas: HTMLCanvasElement) {
         }),
       },
       {
-        binding: 3,
+        binding: 2,
         resource: modelTex.createView(),
       },
     ],
   });
 
   function frame() {
-    modelViewProj = getTransformationMatrix(canvas.width, canvas.height);
-    device!.queue.writeBuffer(
-      modelViewProjBuf,
-      0,
-      modelViewProj.buffer,
-      modelViewProj.byteOffset,
-      modelViewProj.byteLength
-    );
+    function writeBuffer(matrix: Float32Array, offset: number) {
+      device!.queue.writeBuffer(
+        transformBuffer,
+        offset * 4 * 4 * 4,
+        matrix.buffer,
+        matrix.byteOffset,
+        matrix.byteLength
+      );
+    }
 
-    modelMat = modelMatrix() as Float32Array;
-    device!.queue.writeBuffer(
-      modelMatBuf,
-      0,
-      modelMat.buffer,
-      modelMat.byteOffset,
-      modelMat.byteLength
-    );
+    const modelMatrix = getModelMatrix() as Float32Array;
+    writeBuffer(modelMatrix, 0);
+
+    const modelViewProj = mat4.create() as Float32Array;
+    mat4.multiply(modelViewProj, viewProj, modelMatrix);
+    writeBuffer(modelViewProj, 1);
+
+    const modelInverseTranspose = mat4.create() as Float32Array;
+    mat4.invert(modelInverseTranspose, modelMatrix);
+    mat4.transpose(modelInverseTranspose, modelInverseTranspose);
+    writeBuffer(modelInverseTranspose, 2);
 
     const commandEncoder = device!.createCommandEncoder();
     renderPassDesc.colorAttachments = [

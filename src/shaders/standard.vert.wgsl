@@ -1,14 +1,11 @@
-[[block]] struct ModelViewProjMatrix {
-    value: mat4x4<f32>;
+[[block]] struct Mat4 {
+    model: mat4x4<f32>;
+    modelViewProj: mat4x4<f32>;
+    modelInvTr: mat4x4<f32>;
 };
-[[group(0), binding(0)]] var<uniform> modelViewProjMatrix: ModelViewProjMatrix;
+[[group(0), binding(0)]] var<uniform> mat4: Mat4;
 
-[[block]] struct ModelMatrix {
-    value: mat4x4<f32>;
-};
-[[group(0), binding(1)]] var<uniform> modelMatrix: ModelMatrix;
-
-struct VertexOutput {
+struct VertOut {
     [[builtin(position)]] Position: vec4<f32>;
     [[location(0)]] normal: vec3<f32>;
     [[location(1)]] uv: vec2<f32>;
@@ -16,13 +13,13 @@ struct VertexOutput {
 };
 
 [[stage(vertex)]]
-fn main([[location(0)]] position: vec3<f32>,
+fn main([[location(0)]] pos: vec3<f32>,
         [[location(1)]] normal: vec3<f32>,
-        [[location(2)]] uv: vec2<f32>)-> VertexOutput {
-    var output: VertexOutput;
-    output.worldPos = (modelMatrix.value * vec4<f32>(position, 1.0)).xyz;
-    output.Position = modelViewProjMatrix.value * vec4<f32>(position, 1.0);
-    output.normal = normal;
-    output.uv = uv;
-    return output;
+        [[location(2)]] uv: vec2<f32>)-> VertOut {
+    var v: VertOut;
+    v.worldPos = (mat4.model * vec4<f32>(pos, 1.0)).xyz;
+    v.Position = mat4.modelViewProj * vec4<f32>(pos, 1.0);
+    v.normal = normalize((mat4.modelInvTr * vec4<f32>(normal, 0.0)).xyz);
+    v.uv = uv;
+    return v;
 }

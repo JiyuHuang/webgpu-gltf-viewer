@@ -7,8 +7,12 @@
         margin: 0;
         padding: 0;
       }
-      #webgpu-canvas {
+      #model-select {
         position: absolute;
+        top: 0;
+        left: 0;
+      }
+      #webgpu-canvas {
         width: 100%;
         height: 100%;
       }
@@ -16,5 +20,12 @@
   </head>
   <body>
     <canvas id="webgpu-canvas"></canvas>
+    <select id="model-select">
+      <option
+        value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF/Duck.gltf"
+      >
+        Duck
+      </option>
+    </select>
   </body>
 </html>

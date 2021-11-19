@@ -50,7 +50,7 @@ async function loadGltf(uri: string) {
     const bufView = json.bufferViews[json.accessors[idx].bufferView];
     return new Float32Array(
       buf,
-      bufView.byteOffset + json.accessors[idx].byteOffset,
+      bufView.byteOffset + (json.accessors[idx].byteOffset || 0),
       json.accessors[idx].count * n
     );
   }
@@ -59,6 +59,7 @@ async function loadGltf(uri: string) {
   const uvBuf = getBuffer(primitive.attributes.TEXCOORD_0, 2);
 
   const tex = new Image();
+  tex.crossOrigin = 'Anonymous';
   tex.src = `${dir}/${json.images[0].uri}`;
   await tex.decode();
   const texBitmap = await createImageBitmap(tex);
