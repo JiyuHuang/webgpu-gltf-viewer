@@ -3,7 +3,7 @@ import { mat4 } from 'gl-matrix';
 class GLTFNode {
   children: Array<GLTFNode> = [];
 
-  globalTransform: mat4 = mat4.create();
+  globalTransform = mat4.create();
 
   mesh: number | undefined;
 
@@ -38,9 +38,9 @@ class GLTFNode {
     this.mesh = mesh;
 
     if (children) {
-      children.forEach((childIndex: number) => {
-        this.children.push(new GLTFNode(nodes, childIndex, this));
-      });
+      this.children = children.map(
+        (childIndex: number) => new GLTFNode(nodes, childIndex, this)
+      );
     }
   }
 }
@@ -48,13 +48,10 @@ class GLTFNode {
 export type Scene = { name: string; nodes: Array<GLTFNode> };
 
 export function loadScenes(json: any) {
-  const scenes: Array<Scene> = [];
-  json.scenes.forEach((scene: any, sceneIndex: number) => {
-    const nodes: Array<GLTFNode> = [];
-    scene.nodes.forEach((nodeIndex: number) => {
-      nodes.push(new GLTFNode(json.nodes, nodeIndex));
-    });
-    scenes.push({ name: scene.name || sceneIndex, nodes });
-  });
-  return scenes;
+  return json.scenes.map((scene: any, sceneIndex: number) => ({
+    name: scene.name || sceneIndex,
+    nodes: scene.nodes.map(
+      (nodeIndex: number) => new GLTFNode(json.nodes, nodeIndex)
+    ),
+  }));
 }

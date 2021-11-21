@@ -1,13 +1,12 @@
 import { vec3, mat4 } from 'gl-matrix';
-import loadGltf from './gltf-loader';
 import vert from './shaders/standard.vert.wgsl';
 import frag from './shaders/standard.frag.wgsl';
+import GLTF from './classes/gltf';
 
-function getModelMatrix() {
+function getModelMatrix(model: mat4) {
   const mat = mat4.create();
-  mat4.scale(mat, mat, vec3.fromValues(0.03, 0.03, 0.03));
   const now = Date.now() / 1000;
-  mat4.rotate(mat, mat, 1, vec3.fromValues(Math.sin(now), Math.cos(now), 0));
+  mat4.rotate(mat, model, 1, vec3.fromValues(Math.sin(now), Math.cos(now), 0));
   return mat;
 }
 
@@ -16,14 +15,15 @@ function getViewProjMatrix(width: number, height: number) {
   const projectionMatrix = mat4.create();
   mat4.perspective(projectionMatrix, (2 * Math.PI) / 5, aspect, 1, 100.0);
   const viewMatrix = mat4.create();
-  mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, -1, -7));
+  mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, 0, -5));
   const viewProj = mat4.create();
   mat4.multiply(viewProj, projectionMatrix, viewMatrix);
   return viewProj;
 }
 
 async function render(canvas: HTMLCanvasElement, url: string) {
-  const model = await loadGltf(url);
+  const gltf = new GLTF();
+  await gltf.load(url);
   const viewProj = getViewProjMatrix(canvas.width, canvas.height);
 
   const entry = navigator.gpu;
@@ -149,13 +149,16 @@ async function render(canvas: HTMLCanvasElement, url: string) {
     buffer.unmap();
     return buffer;
   }
-  const posBuf = createBuffer(model.posBuf, GPUBufferUsage.VERTEX);
-  const norBuf = createBuffer(model.norBuf, GPUBufferUsage.VERTEX);
-  const uvBuf = createBuffer(model.uvBuf, GPUBufferUsage.VERTEX);
-  const idxBuf = createBuffer(model.idxBuf, GPUBufferUsage.INDEX);
+  const posBuf = createBuffer(
+    gltf.meshes[0][0].positions,
+    GPUBufferUsage.VERTEX
+  );
+  const norBuf = createBuffer(gltf.meshes[0][0].normals, GPUBufferUsage.VERTEX);
+  const uvBuf = createBuffer(gltf.meshes[0][0].uvs, GPUBufferUsage.VERTEX);
+  const idxBuf = createBuffer(gltf.meshes[0][0].indices, GPUBufferUsage.INDEX);
 
   const modelTex = device.createTexture({
-    size: [model.texBitmap.width, model.texBitmap.height, 1],
+    size: [gltf.images[0].width, gltf.images[0].height, 1],
     format: 'rgba8unorm',
     usage:
       GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
@@ -163,9 +166,9 @@ async function render(canvas: HTMLCanvasElement, url: string) {
       GPUTextureUsage.RENDER_ATTACHMENT,
   });
   device.queue.copyExternalImageToTexture(
-    { source: model.texBitmap },
+    { source: gltf.images[0] },
     { texture: modelTex },
-    [model.texBitmap.width, model.texBitmap.height]
+    [gltf.images[0].width, gltf.images[0].height]
   );
 
   const transformBuffer = device.createBuffer({
@@ -209,7 +212,9 @@ async function render(canvas: HTMLCanvasElement, url: string) {
       );
     }
 
-    const modelMatrix = getModelMatrix() as Float32Array;
+    const modelMatrix = getModelMatrix(
+      gltf.scenes[gltf.scene || 0].nodes[0].globalTransform
+    ) as Float32Array;
     writeBuffer(modelMatrix, 0);
 
     const modelViewProj = mat4.create() as Float32Array;
@@ -237,7 +242,7 @@ async function render(canvas: HTMLCanvasElement, url: string) {
     passEncoder.setIndexBuffer(idxBuf, 'uint16');
     passEncoder.setBindGroup(0, uniformBindGroup);
     passEncoder.drawIndexed(
-      model.idxBuf.byteLength / Uint16Array.BYTES_PER_ELEMENT
+      gltf.meshes[0][0].indices.byteLength / Uint16Array.BYTES_PER_ELEMENT
     );
     passEncoder.endPass();
     device!.queue.submit([commandEncoder.finish()]);

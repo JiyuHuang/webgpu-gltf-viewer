@@ -33,13 +33,9 @@ class Primitive {
 export type Mesh = Array<Primitive>;
 
 export function loadMeshes(json: any, buffer: ArrayBuffer) {
-  const meshes: Array<Mesh> = [];
-  json.meshes.forEach((meshInfo: any) => {
-    const mesh: Mesh = [];
-    meshInfo.primitives.forEach((primitive: any) => {
-      mesh.push(new Primitive(json, primitive, buffer));
-    });
-    meshes.push(mesh);
-  });
-  return meshes;
+  return json.meshes.map((mesh: any) =>
+    mesh.primitives.map(
+      (primitive: any) => new Primitive(json, primitive, buffer)
+    )
+  );
 }
