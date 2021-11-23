@@ -50,7 +50,7 @@ export default class GLTF {
     const dir = url.substring(0, url.lastIndexOf('/'));
     const json = await loadJson(url);
 
-    const meshesPromise = Promise.all(
+    const meshesLoaded = Promise.all(
       json.buffers.map((buffer: any) =>
         loadBuffer(`${dir}/${buffer.uri}`)
       ) as Array<Promise<ArrayBuffer>>
@@ -58,15 +58,20 @@ export default class GLTF {
       this.meshes = loadMeshes(json, buffers[0]);
     });
 
-    const imagesPromise = json.images.map((image: any, index: number) =>
-      loadImage(`${dir}/${image.uri}`).then((bitMap) => {
-        this.images[index] = bitMap;
-      })
-    );
+    let imagesLoaded: Promise<any> = Promise.resolve();
+    if (json.images) {
+      imagesLoaded = Promise.all(
+        json.images.map((image: any, index: number) =>
+          loadImage(`${dir}/${image.uri}`).then((bitMap) => {
+            this.images[index] = bitMap;
+          })
+        )
+      );
+    }
 
     this.scenes = loadScenes(json);
     this.scene = json.scene;
 
-    return Promise.all([meshesPromise, Promise.all(imagesPromise)]);
+    return Promise.all([meshesLoaded, imagesLoaded]);
   }
 }

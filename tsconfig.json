@@ -9,5 +9,5 @@
     "moduleResolution": "node",
     "strict": true
   },
-  "include": ["custom.d.ts", "src/**/*", "node_modules/@webgpu/types/**/*"]
+  "include": ["src/**/*", "node_modules/@webgpu/types/**/*"]
 }

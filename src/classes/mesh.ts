@@ -5,7 +5,7 @@ class Primitive {
 
   normals: Float32Array;
 
-  uvs: Float32Array;
+  uvs: Float32Array | undefined;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
     const indexBufferView =
@@ -26,7 +26,9 @@ class Primitive {
     }
     this.positions = getArray(primitive.attributes.POSITION, 3);
     this.normals = getArray(primitive.attributes.NORMAL, 3);
-    this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
+    if (primitive.attributes.TEXCOORD_0) {
+      this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
+    }
   }
 }
 

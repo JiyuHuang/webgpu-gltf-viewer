@@ -26,10 +26,6 @@ module.exports = (env, argv) => {
           use: 'ts-loader',
           exclude: /node_modules/,
         },
-        {
-          test: /\.wgsl/,
-          type: 'asset/source',
-        },
       ],
     },
     resolve: {
