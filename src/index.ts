@@ -1,9 +1,9 @@
-import Renderer from './renderer';
+import { Renderer, createRenderer } from './renderer/renderer';
 
 const canvas = document.getElementById('webgpu-canvas') as HTMLCanvasElement;
 const select = document.getElementById('model-select') as HTMLSelectElement;
-const renderer = new Renderer(canvas);
-select.onchange = () => renderer.render(select.value);
+let renderer: Renderer;
+select.onchange = () => renderer.load(select.value);
 fetch(
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/model-index.json'
 )
@@ -16,8 +16,8 @@ fetch(
       select.add(option);
       if (model.name === 'Duck') {
         select.value = option.value;
-        await renderer.init();
-        renderer.render(select.value);
+        renderer = await createRenderer(canvas);
+        renderer.load(select.value);
       }
     });
   });

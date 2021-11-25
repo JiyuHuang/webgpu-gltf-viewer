@@ -1,13 +1,18 @@
 class Primitive {
-  indices: Uint16Array;
+  readonly indexCount: number;
 
-  positions: Float32Array;
+  readonly indices: Uint16Array;
 
-  normals: Float32Array;
+  readonly positions: Float32Array;
 
-  uvs: Float32Array | undefined;
+  readonly normals: Float32Array;
+
+  readonly uvs?: Float32Array;
+
+  readonly material: any;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
+    this.indexCount = json.accessors[primitive.indices].count;
     const indexBufferView =
       json.bufferViews[json.accessors[primitive.indices].bufferView];
     this.indices = new Uint16Array(
@@ -29,6 +34,8 @@ class Primitive {
     if (primitive.attributes.TEXCOORD_0) {
       this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
     }
+
+    this.material = json.materials[primitive.material];
   }
 }
 
