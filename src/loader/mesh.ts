@@ -1,15 +1,15 @@
 class Primitive {
-  readonly indexCount: number;
+  indexCount: number;
 
-  readonly indices: Uint16Array;
+  indices: Uint16Array;
 
-  readonly positions: Float32Array;
+  positions: Float32Array;
 
-  readonly normals: Float32Array;
+  normals: Float32Array;
 
-  readonly uvs?: Float32Array;
+  uvs?: Float32Array;
 
-  readonly material: any;
+  material: any;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
     this.indexCount = json.accessors[primitive.indices].count;

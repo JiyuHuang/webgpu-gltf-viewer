@@ -1,35 +1,17 @@
-import { vec3, mat4 } from 'gl-matrix';
 import { GLTF, loadGLTF } from '../loader/gltf';
 import Resource from './resource';
-
-function getModelMatrix(model: mat4) {
-  const mat = mat4.create();
-  const now = Date.now() / 1000;
-  mat4.rotate(mat, model, 1, vec3.fromValues(Math.sin(now), Math.cos(now), 0));
-  return mat;
-}
-
-function getViewProjMatrix(width: number, height: number) {
-  const aspect = width / height;
-  const projectionMatrix = mat4.create();
-  mat4.perspective(projectionMatrix, (2 * Math.PI) / 5, aspect, 1, 100.0);
-  const viewMatrix = mat4.create();
-  mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, 0, -5));
-  const viewProj = mat4.create();
-  mat4.multiply(viewProj, projectionMatrix, viewMatrix);
-  return viewProj;
-}
+import Camera from './camera';
 
 export class Renderer {
-  readonly canvas: HTMLCanvasElement;
+  canvas: HTMLCanvasElement;
 
-  readonly device: GPUDevice;
+  device: GPUDevice;
 
-  readonly context: GPUCanvasContext;
+  context: GPUCanvasContext;
 
-  readonly contextFormat: GPUTextureFormat;
+  contextFormat: GPUTextureFormat;
 
-  contextSize: GPUExtent3D;
+  depthTexture: GPUTexture;
 
   renderPassDesc: GPURenderPassDescriptor;
 
@@ -37,32 +19,55 @@ export class Renderer {
 
   resource?: Resource;
 
+  camera: Camera;
+
   constructor(
     canvas: HTMLCanvasElement,
     device: GPUDevice,
     context: GPUCanvasContext,
-    contextFormat: GPUTextureFormat,
-    contextSize: GPUExtent3D
+    contextFormat: GPUTextureFormat
   ) {
     this.canvas = canvas;
     this.device = device;
     this.context = context;
     this.contextFormat = contextFormat;
-    this.contextSize = contextSize;
+
+    this.depthTexture = device.createTexture({
+      size: [
+        canvas.clientWidth * devicePixelRatio,
+        canvas.clientHeight * devicePixelRatio,
+      ],
+      format: 'depth24plus',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
     this.renderPassDesc = {
       colorAttachments: [],
       depthStencilAttachment: {
-        view: this.device!.createTexture({
-          size: this.contextSize!,
-          format: 'depth24plus',
-          usage: GPUTextureUsage.RENDER_ATTACHMENT,
-        }).createView(),
+        view: this.depthTexture.createView(),
         depthLoadValue: 1.0,
         depthStoreOp: 'store',
         stencilLoadValue: 0,
         stencilStoreOp: 'store',
       },
     };
+
+    window.addEventListener('resize', () => {
+      const size = [
+        canvas.clientWidth * devicePixelRatio,
+        canvas.clientHeight * devicePixelRatio,
+      ];
+      context.configure({ device, format: contextFormat, size });
+      this.depthTexture.destroy();
+      this.depthTexture = device.createTexture({
+        size,
+        format: 'depth24plus',
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+      this.renderPassDesc.depthStencilAttachment!.view =
+        this.depthTexture.createView();
+    });
+
+    this.camera = new Camera(canvas);
   }
 
   protected render() {
@@ -87,24 +92,9 @@ export class Renderer {
             matrix.byteLength
           );
         };
-
-        const modelMatrix = getModelMatrix(
-          meshResource.matrices[0]
-        ) as Float32Array;
-        writeBuffer(modelMatrix, 0);
-
-        const modelViewProj = mat4.create() as Float32Array;
-        const viewProj = getViewProjMatrix(
-          this.canvas.width,
-          this.canvas.height
-        );
-        mat4.multiply(modelViewProj, viewProj, modelMatrix);
-        writeBuffer(modelViewProj, 1);
-
-        const modelInverseTranspose = mat4.create() as Float32Array;
-        mat4.invert(modelInverseTranspose, modelMatrix);
-        mat4.transpose(modelInverseTranspose, modelInverseTranspose);
-        writeBuffer(modelInverseTranspose, 2);
+        writeBuffer(meshResource.matrices[0] as Float32Array, 0);
+        writeBuffer(meshResource.modelInvTrs[0] as Float32Array, 1);
+        writeBuffer(this.camera.projView as Float32Array, 2);
 
         meshResource.primitives.forEach((primResource) => {
           passEncoder.setPipeline(primResource.pipeline);
@@ -146,10 +136,13 @@ export async function createRenderer(canvas: HTMLCanvasElement) {
   const device = await adapter!.requestDevice();
   const context = canvas.getContext('webgpu');
   const format = context!.getPreferredFormat(adapter!);
-  const size = [
-    canvas.clientWidth * devicePixelRatio,
-    canvas.clientHeight * devicePixelRatio,
-  ];
-  context!.configure({ device, format, size });
-  return new Renderer(canvas, device, context!, format, size);
+  context!.configure({
+    device,
+    format,
+    size: [
+      canvas.clientWidth * devicePixelRatio,
+      canvas.clientHeight * devicePixelRatio,
+    ],
+  });
+  return new Renderer(canvas, device, context!, format);
 }

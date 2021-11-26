@@ -13,15 +13,16 @@ type PerPrimitiveResource = {
 };
 
 export default class Resource {
-  readonly meshes: {
+  meshes: {
     [key: number]: {
       matrices: Array<mat4>;
+      modelInvTrs: Array<mat4>;
       matrixBuffer: GPUBuffer;
       primitives: Array<PerPrimitiveResource>;
     };
   } = {};
 
-  readonly textures: { [key: number]: GPUTexture } = {};
+  textures: { [key: number]: GPUTexture } = {};
 
   constructor(
     gltf: GLTF,
@@ -64,13 +65,19 @@ export default class Resource {
       }
 
       if (node.mesh !== undefined) {
+        const modelInverseTranspose = mat4.create();
+        mat4.invert(modelInverseTranspose, matrix);
+        mat4.transpose(modelInverseTranspose, modelInverseTranspose);
+
         if (!this.meshes[node.mesh]) {
           const matrixBuffer = device.createBuffer({
             size: 4 * 4 * 4 * 3,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
           });
+
           this.meshes[node.mesh] = {
             matrices: [matrix],
+            modelInvTrs: [modelInverseTranspose],
             matrixBuffer,
             primitives: gltf.meshes[node.mesh].map<PerPrimitiveResource>(
               (primitive) => {
@@ -89,9 +96,12 @@ export default class Resource {
                       GPUTextureUsage.RENDER_ATTACHMENT,
                   });
                   device.queue.copyExternalImageToTexture(
-                    { source: gltf.images[0] },
+                    { source: gltf.images[baseColorTexture.index] },
                     { texture: this.textures[baseColorTexture.index] },
-                    [gltf.images[0].width, gltf.images[0].height]
+                    [
+                      gltf.images[baseColorTexture.index].width,
+                      gltf.images[baseColorTexture.index].height,
+                    ]
                   );
                 }
 
@@ -143,6 +153,7 @@ export default class Resource {
           };
         } else {
           this.meshes[node.mesh].matrices.push(matrix);
+          this.meshes[node.mesh].modelInvTrs.push(modelInverseTranspose);
         }
       }
 
