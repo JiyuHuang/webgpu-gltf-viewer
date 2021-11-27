@@ -76,7 +76,7 @@ export class Renderer {
       this.renderPassDesc.colorAttachments = [
         {
           view: this.context.getCurrentTexture().createView(),
-          loadValue: { r: 0, g: 0, b: 0, a: 1 },
+          loadValue: { r: 0.3, g: 0.5, b: 0.7, a: 1 },
           storeOp: 'store',
         },
       ];
@@ -97,7 +97,9 @@ export class Renderer {
         writeBuffer(this.camera.projView as Float32Array, 2);
 
         meshResource.primitives.forEach((primResource) => {
-          passEncoder.setPipeline(primResource.pipeline);
+          passEncoder.setPipeline(
+            this.resource!.pipelines[primResource.pipeline]
+          );
           passEncoder.setVertexBuffer(0, primResource.positions);
           passEncoder.setVertexBuffer(1, primResource.normals);
           if (primResource.uvs) {

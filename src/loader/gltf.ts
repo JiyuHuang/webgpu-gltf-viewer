@@ -47,21 +47,17 @@ export class GLTF {
 
   meshes: Array<Mesh>;
 
+  materials: Array<any>;
+
   images: Array<ImageBitmap>;
 
-  constructor(
-    scenes: Array<any>,
-    scene: number,
-    nodes: Array<any>,
-    cameras: Array<any> | undefined,
-    meshes: Array<Mesh>,
-    images: Array<ImageBitmap>
-  ) {
-    this.scenes = scenes;
-    this.scene = scene;
-    this.nodes = nodes;
-    this.cameras = cameras;
+  constructor(json: any, meshes: Array<Mesh>, images: Array<ImageBitmap>) {
+    this.scenes = json.scenes;
+    this.scene = json.scene;
+    this.nodes = json.nodes;
+    this.cameras = json.cameras;
     this.meshes = meshes;
+    this.materials = json.materials;
     this.images = images;
   }
 }
@@ -92,14 +88,6 @@ export async function loadGLTF(url: string) {
   }
 
   return Promise.all([meshesLoaded, imagesLoaded]).then(
-    () =>
-      new GLTF(
-        json.scenes,
-        json.scene,
-        json.nodes,
-        json.cameras,
-        meshes,
-        images
-      )
+    () => new GLTF(json, meshes, images)
   );
 }

@@ -8,7 +8,7 @@ type PerPrimitiveResource = {
   normals: GPUBuffer;
   indices: GPUBuffer;
   uvs: GPUBuffer | null;
-  pipeline: GPURenderPipeline;
+  pipeline: number;
   uniformBindGroup: GPUBindGroup;
 };
 
@@ -24,12 +24,42 @@ export default class Resource {
 
   textures: { [key: number]: GPUTexture } = {};
 
+  pipelines: Array<GPURenderPipeline>;
+
   constructor(
     gltf: GLTF,
     sceneIndex: number,
     device: GPUDevice,
     contextFormat: GPUTextureFormat
   ) {
+    this.pipelines = gltf.materials.map((material) => {
+      const { baseColorTexture } = material.pbrMetallicRoughness;
+      if (baseColorTexture && !this.textures[baseColorTexture.index]) {
+        this.textures[baseColorTexture.index] = device.createTexture({
+          size: [
+            gltf.images[baseColorTexture.index].width,
+            gltf.images[baseColorTexture.index].height,
+            1,
+          ],
+          format: 'rgba8unorm',
+          usage:
+            GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
+            GPUTextureUsage.COPY_DST | // eslint-disable-line no-bitwise
+            GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+        device.queue.copyExternalImageToTexture(
+          { source: gltf.images[baseColorTexture.index] },
+          { texture: this.textures[baseColorTexture.index] },
+          [
+            gltf.images[baseColorTexture.index].width,
+            gltf.images[baseColorTexture.index].height,
+          ]
+        );
+      }
+
+      return createPipeline(device, contextFormat, material);
+    });
+
     const createGPUBuffer = (
       array: Float32Array | Uint16Array,
       isIndex = false
@@ -79,32 +109,11 @@ export default class Resource {
             matrices: [matrix],
             modelInvTrs: [modelInverseTranspose],
             matrixBuffer,
+
             primitives: gltf.meshes[node.mesh].map<PerPrimitiveResource>(
               (primitive) => {
                 const { baseColorTexture } =
-                  primitive.material.pbrMetallicRoughness;
-                if (
-                  baseColorTexture &&
-                  !this.textures[baseColorTexture.index]
-                ) {
-                  this.textures[baseColorTexture.index] = device.createTexture({
-                    size: [gltf.images[0].width, gltf.images[0].height, 1],
-                    format: 'rgba8unorm',
-                    usage:
-                      GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
-                      GPUTextureUsage.COPY_DST | // eslint-disable-line no-bitwise
-                      GPUTextureUsage.RENDER_ATTACHMENT,
-                  });
-                  device.queue.copyExternalImageToTexture(
-                    { source: gltf.images[baseColorTexture.index] },
-                    { texture: this.textures[baseColorTexture.index] },
-                    [
-                      gltf.images[baseColorTexture.index].width,
-                      gltf.images[baseColorTexture.index].height,
-                    ]
-                  );
-                }
-
+                  gltf.materials[primitive.material].pbrMetallicRoughness;
                 const bindGroupEntries: [GPUBindGroupEntry] = [
                   {
                     binding: 0,
@@ -130,11 +139,7 @@ export default class Resource {
                   });
                 }
 
-                const pipeline = createPipeline(
-                  device,
-                  contextFormat,
-                  primitive.uvs !== undefined
-                );
+                const pipeline = primitive.material;
 
                 return {
                   indexCount: primitive.indexCount,
@@ -144,7 +149,7 @@ export default class Resource {
                   uvs: primitive.uvs ? createGPUBuffer(primitive.uvs) : null,
                   pipeline,
                   uniformBindGroup: device.createBindGroup({
-                    layout: pipeline.getBindGroupLayout(0),
+                    layout: this.pipelines[pipeline].getBindGroupLayout(0),
                     entries: bindGroupEntries,
                   }),
                 };

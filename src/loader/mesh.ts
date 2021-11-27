@@ -9,7 +9,7 @@ class Primitive {
 
   uvs?: Float32Array;
 
-  material: any;
+  material: number;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
     this.indexCount = json.accessors[primitive.indices].count;
@@ -35,7 +35,7 @@ class Primitive {
       this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
     }
 
-    this.material = json.materials[primitive.material];
+    this.material = primitive.material;
   }
 }
 

@@ -3,9 +3,11 @@ import frag from '../shaders/standard.frag.wgsl';
 
 export default function createPipeline(
   device: GPUDevice,
-  contextFormat: GPUTextureFormat,
-  hasUV: boolean
+  format: GPUTextureFormat,
+  material: any
 ) {
+  const { baseColorFactor, baseColorTexture } = material.pbrMetallicRoughness;
+  const hasUV = baseColorTexture !== undefined;
   function getVertexBufferLayout(
     shaderLocation: number,
     n: number
@@ -66,10 +68,10 @@ export default function createPipeline(
     },
     fragment: {
       module: device.createShaderModule({
-        code: frag(hasUV),
+        code: frag(hasUV, baseColorFactor),
       }),
       entryPoint: 'main',
-      targets: [{ format: contextFormat }],
+      targets: [{ format }],
     },
     primitive: {
       topology: 'triangle-list',
