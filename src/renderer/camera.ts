@@ -20,18 +20,20 @@ export default class Camera {
 
   protected view = mat4.create();
 
+  eye = vec3.fromValues(0, 0, 3);
+
   projView = mat4.create();
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const aspect = canvas.clientWidth / canvas.clientHeight;
-    mat4.perspective(this.proj, Math.PI / 2, aspect, 0.1, Infinity);
+    mat4.perspective(this.proj, Math.PI / 3, aspect, 0.1, Infinity);
     this.update();
 
     window.addEventListener('resize', () => {
       this.proj[0] =
         1 /
-        (Math.tan(Math.PI / 4) * (canvas.clientWidth / canvas.clientHeight));
+        (Math.tan(Math.PI / 6) * (canvas.clientWidth / canvas.clientHeight));
       mat4.mul(this.projView, this.proj, this.view);
     });
 
@@ -61,10 +63,17 @@ export default class Camera {
   }
 
   protected update() {
-    const eye = vec3.fromValues(0, 0, this.radius);
-    vec3.rotateX(eye, eye, center, this.phi);
-    vec3.rotateY(eye, eye, center, this.theta);
-    mat4.lookAt(this.view, eye, center, up);
+    this.eye = vec3.fromValues(0, 0, this.radius);
+    vec3.rotateX(this.eye, this.eye, center, this.phi);
+    vec3.rotateY(this.eye, this.eye, center, this.theta);
+    mat4.lookAt(this.view, this.eye, center, up);
     mat4.mul(this.projView, this.proj, this.view);
+  }
+
+  reset() {
+    this.radius = 3;
+    this.theta = 0;
+    this.phi = 0;
+    this.update();
   }
 }

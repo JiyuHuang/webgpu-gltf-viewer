@@ -26,12 +26,44 @@ export default class Resource {
 
   pipelines: Array<GPURenderPipeline>;
 
+  camera: {
+    projViewBuffer: GPUBuffer;
+    eyeBuffer: GPUBuffer;
+    bindGroup: GPUBindGroup;
+  };
+
   constructor(
     gltf: GLTF,
     sceneIndex: number,
     device: GPUDevice,
     contextFormat: GPUTextureFormat
   ) {
+    const cameraBindGroupLayout = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {} },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: {} },
+      ],
+    });
+    const projViewBuffer = device.createBuffer({
+      size: 4 * 4 * 4,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
+    });
+    const eyeBuffer = device.createBuffer({
+      size: 4 * 3,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
+    });
+    this.camera = {
+      projViewBuffer,
+      eyeBuffer,
+      bindGroup: device.createBindGroup({
+        layout: cameraBindGroupLayout,
+        entries: [
+          { binding: 0, resource: { buffer: projViewBuffer } },
+          { binding: 1, resource: { buffer: eyeBuffer } },
+        ],
+      }),
+    };
+
     this.pipelines = gltf.materials.map((material) => {
       const { baseColorTexture } = material.pbrMetallicRoughness;
       if (baseColorTexture && !this.textures[baseColorTexture.index]) {
@@ -57,7 +89,12 @@ export default class Resource {
         );
       }
 
-      return createPipeline(device, contextFormat, material);
+      return createPipeline(
+        device,
+        contextFormat,
+        material,
+        cameraBindGroupLayout
+      );
     });
 
     const createGPUBuffer = (
@@ -101,7 +138,7 @@ export default class Resource {
 
         if (!this.meshes[node.mesh]) {
           const matrixBuffer = device.createBuffer({
-            size: 4 * 4 * 4 * 3,
+            size: 4 * 4 * 4 * 2,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
           });
 
@@ -115,12 +152,7 @@ export default class Resource {
                 const { baseColorTexture } =
                   gltf.materials[primitive.material].pbrMetallicRoughness;
                 const bindGroupEntries: [GPUBindGroupEntry] = [
-                  {
-                    binding: 0,
-                    resource: {
-                      buffer: matrixBuffer,
-                    },
-                  },
+                  { binding: 0, resource: { buffer: matrixBuffer } },
                 ];
                 if (baseColorTexture) {
                   bindGroupEntries.push({
@@ -149,7 +181,7 @@ export default class Resource {
                   uvs: primitive.uvs ? createGPUBuffer(primitive.uvs) : null,
                   pipeline,
                   uniformBindGroup: device.createBindGroup({
-                    layout: this.pipelines[pipeline].getBindGroupLayout(0),
+                    layout: this.pipelines[pipeline].getBindGroupLayout(1),
                     entries: bindGroupEntries,
                   }),
                 };

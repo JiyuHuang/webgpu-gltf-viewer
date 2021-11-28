@@ -4,7 +4,8 @@ import frag from '../shaders/standard.frag.wgsl';
 export default function createPipeline(
   device: GPUDevice,
   format: GPUTextureFormat,
-  material: any
+  material: any,
+  cameraBindGroupLayout: GPUBindGroupLayout
 ) {
   const { baseColorFactor, baseColorTexture } = material.pbrMetallicRoughness;
   const hasUV = baseColorTexture !== undefined;
@@ -54,6 +55,7 @@ export default function createPipeline(
   return device.createRenderPipeline({
     layout: device.createPipelineLayout({
       bindGroupLayouts: [
+        cameraBindGroupLayout,
         device.createBindGroupLayout({
           entries: bindGroupLayoutEntries,
         }),

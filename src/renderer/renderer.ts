@@ -11,8 +11,6 @@ export class Renderer {
 
   contextFormat: GPUTextureFormat;
 
-  depthTexture: GPUTexture;
-
   renderPassDesc: GPURenderPassDescriptor;
 
   gltf?: GLTF;
@@ -32,7 +30,7 @@ export class Renderer {
     this.context = context;
     this.contextFormat = contextFormat;
 
-    this.depthTexture = device.createTexture({
+    let depthTexture = device.createTexture({
       size: [
         canvas.clientWidth * devicePixelRatio,
         canvas.clientHeight * devicePixelRatio,
@@ -43,7 +41,7 @@ export class Renderer {
     this.renderPassDesc = {
       colorAttachments: [],
       depthStencilAttachment: {
-        view: this.depthTexture.createView(),
+        view: depthTexture.createView(),
         depthLoadValue: 1.0,
         depthStoreOp: 'store',
         stencilLoadValue: 0,
@@ -57,14 +55,14 @@ export class Renderer {
         canvas.clientHeight * devicePixelRatio,
       ];
       context.configure({ device, format: contextFormat, size });
-      this.depthTexture.destroy();
-      this.depthTexture = device.createTexture({
+      depthTexture.destroy();
+      depthTexture = device.createTexture({
         size,
         format: 'depth24plus',
         usage: GPUTextureUsage.RENDER_ATTACHMENT,
       });
       this.renderPassDesc.depthStencilAttachment!.view =
-        this.depthTexture.createView();
+        depthTexture.createView();
     });
 
     this.camera = new Camera(canvas);
@@ -82,19 +80,38 @@ export class Renderer {
       ];
       const passEncoder = commandEncoder.beginRenderPass(this.renderPassDesc);
 
+      const projView = this.camera.projView as Float32Array;
+      this.device.queue.writeBuffer(
+        this.resource!.camera.projViewBuffer,
+        0,
+        projView.buffer,
+        projView.byteOffset,
+        projView.byteLength
+      );
+      const eye = this.camera.eye as Float32Array;
+      this.device.queue.writeBuffer(
+        this.resource!.camera.eyeBuffer,
+        0,
+        eye.buffer,
+        eye.byteOffset,
+        eye.byteLength
+      );
+      passEncoder.setBindGroup(0, this.resource!.camera.bindGroup);
+
       Object.entries(this.resource!.meshes).forEach(([, meshResource]) => {
-        const writeBuffer = (matrix: Float32Array, offset: number) => {
-          this.device.queue.writeBuffer(
-            meshResource.matrixBuffer,
-            offset * 4 * 4 * 4,
-            matrix.buffer,
-            matrix.byteOffset,
-            matrix.byteLength
-          );
-        };
-        writeBuffer(meshResource.matrices[0] as Float32Array, 0);
-        writeBuffer(meshResource.modelInvTrs[0] as Float32Array, 1);
-        writeBuffer(this.camera.projView as Float32Array, 2);
+        for (let i = 0; i < meshResource.matrices.length; i += 1) {
+          const writeBuffer = (matrix: Float32Array, offset: number) => {
+            this.device.queue.writeBuffer(
+              meshResource.matrixBuffer,
+              offset * 4 * 4 * 4,
+              matrix.buffer,
+              matrix.byteOffset,
+              matrix.byteLength
+            );
+          };
+          writeBuffer(meshResource.matrices[i] as Float32Array, 0);
+          writeBuffer(meshResource.modelInvTrs[i] as Float32Array, 1);
+        }
 
         meshResource.primitives.forEach((primResource) => {
           passEncoder.setPipeline(
@@ -106,7 +123,7 @@ export class Renderer {
             passEncoder.setVertexBuffer(2, primResource.uvs);
           }
           passEncoder.setIndexBuffer(primResource.indices, 'uint16');
-          passEncoder.setBindGroup(0, primResource.uniformBindGroup);
+          passEncoder.setBindGroup(1, primResource.uniformBindGroup);
           passEncoder.drawIndexed(primResource.indexCount);
         });
       });
@@ -127,6 +144,7 @@ export class Renderer {
       this.device,
       this.contextFormat
     );
+    this.camera.reset();
     this.render();
   }
 }
