@@ -14,7 +14,7 @@ fetch(
       option.innerHTML = model.name;
       option.value = `https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/${model.name}/glTF/${model.name}.gltf`;
       select.add(option);
-      if (model.name === 'Duck') {
+      if (model.name === 'DamagedHelmet') {
         select.value = option.value;
         renderer = await createRenderer(canvas);
         renderer.load(select.value);

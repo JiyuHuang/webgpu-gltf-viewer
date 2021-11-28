@@ -1,16 +1,12 @@
-export default function frag(material: any, hasUV: boolean) {
-  function toFloat(num: number | undefined) {
-    if (num === undefined) {
-      return '1.0';
-    }
-    if (Number.isInteger(num)) {
-      return `${num}.0`;
-    }
-    return num;
-  }
+import { toFloat } from '../util';
 
-  const { baseColorTexture, metallicFactor, roughnessFactor } =
-    material.pbrMetallicRoughness;
+export default function frag(material: any, hasUV: boolean) {
+  const {
+    baseColorTexture,
+    metallicRoughnessTexture,
+    metallicFactor,
+    roughnessFactor,
+  } = material.pbrMetallicRoughness;
   let { baseColorFactor } = material.pbrMetallicRoughness;
   baseColorFactor = baseColorFactor || [1, 1, 1, 1];
 
@@ -23,10 +19,18 @@ export default function frag(material: any, hasUV: boolean) {
   [[group(0), binding(1)]] var<uniform> camera: Camera;
 
   ${
-    hasUV
+    baseColorTexture
       ? `
   [[group(1), binding(1)]] var texSampler: sampler;
   [[group(1), binding(2)]] var tex: texture_2d<f32>;
+  /* wgsl */ `
+      : ''
+  }
+  ${
+    metallicRoughnessTexture
+      ? `
+  [[group(1), binding(3)]] var metalRoughSampler: sampler;
+  [[group(1), binding(4)]] var metalRoughTex: texture_2d<f32>;
   /* wgsl */ `
       : ''
   }
@@ -94,6 +98,7 @@ export default function frag(material: any, hasUV: boolean) {
           }) -> [[location(0)]] vec4<f32>
   {
       let lightPos = vec3<f32>(2.0, 4.0, 3.0);
+
       var color = vec4<f32>(${toFloat(baseColorFactor[0])},
                             ${toFloat(baseColorFactor[1])},
                             ${toFloat(baseColorFactor[2])},
@@ -104,14 +109,26 @@ export default function frag(material: any, hasUV: boolean) {
           : ''
       }
 
+      var metallic: f32 = ${toFloat(metallicFactor)};
+      var roughness: f32 = ${toFloat(roughnessFactor)};
+      ${
+        metallicRoughnessTexture
+          ? `
+      let metalRough = textureSample(metalRoughTex, metalRoughSampler, uv);
+      metallic = metallic * metalRough.b;
+      roughness = roughness * metalRough.g;
+      /* wgsl */ `
+          : ''
+      }
+
       // return vec4<f32>(phong(color.rgb,
       //                        normalize(lightPos - worldPos),
       //                        normalize(camera.eye - worldPos),
       //                        normalize(normal)),
       //                  color.a);
       return vec4<f32>(brdf(color.rgb,
-                            ${toFloat(metallicFactor)},
-                            ${toFloat(roughnessFactor)},
+                            metallic,
+                            roughness,
                             normalize(lightPos - worldPos),
                             normalize(camera.eye - worldPos),
                             normalize(normal)),

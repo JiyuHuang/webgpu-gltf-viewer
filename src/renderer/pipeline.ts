@@ -7,7 +7,8 @@ export default function createPipeline(
   material: any,
   cameraBindGroupLayout: GPUBindGroupLayout
 ) {
-  const { baseColorTexture } = material.pbrMetallicRoughness;
+  const { baseColorTexture, metallicRoughnessTexture } =
+    material.pbrMetallicRoughness;
   const hasUV = baseColorTexture !== undefined;
   function getVertexBufferLayout(
     shaderLocation: number,
@@ -39,7 +40,7 @@ export default function createPipeline(
       buffer: {},
     },
   ];
-  if (hasUV) {
+  if (baseColorTexture) {
     bindGroupLayoutEntries.push({
       binding: 1,
       visibility: GPUShaderStage.FRAGMENT,
@@ -47,6 +48,18 @@ export default function createPipeline(
     });
     bindGroupLayoutEntries.push({
       binding: 2,
+      visibility: GPUShaderStage.FRAGMENT,
+      texture: {},
+    });
+  }
+  if (metallicRoughnessTexture) {
+    bindGroupLayoutEntries.push({
+      binding: 3,
+      visibility: GPUShaderStage.FRAGMENT,
+      sampler: {},
+    });
+    bindGroupLayoutEntries.push({
+      binding: 4,
       visibility: GPUShaderStage.FRAGMENT,
       texture: {},
     });

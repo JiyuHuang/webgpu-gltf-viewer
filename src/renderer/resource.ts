@@ -1,7 +1,7 @@
 import { mat4 } from 'gl-matrix';
 import { GLTF } from '../loader/gltf';
 import createPipeline from './pipeline';
-import * as util from '../util';
+import { concatArray } from '../util';
 
 type PerPrimitiveResource = {
   indexCount: number;
@@ -64,29 +64,33 @@ export default class Resource {
     };
 
     this.pipelines = gltf.materials.map((material) => {
-      const { baseColorTexture } = material.pbrMetallicRoughness;
-      if (baseColorTexture && !this.textures[baseColorTexture.index]) {
-        this.textures[baseColorTexture.index] = device.createTexture({
-          size: [
-            gltf.images[baseColorTexture.index].width,
-            gltf.images[baseColorTexture.index].height,
-            1,
-          ],
-          format: 'rgba8unorm',
-          usage:
-            GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
-            GPUTextureUsage.COPY_DST | // eslint-disable-line no-bitwise
-            GPUTextureUsage.RENDER_ATTACHMENT,
-        });
-        device.queue.copyExternalImageToTexture(
-          { source: gltf.images[baseColorTexture.index] },
-          { texture: this.textures[baseColorTexture.index] },
-          [
-            gltf.images[baseColorTexture.index].width,
-            gltf.images[baseColorTexture.index].height,
-          ]
-        );
-      }
+      const { baseColorTexture, metallicRoughnessTexture } =
+        material.pbrMetallicRoughness;
+      const textures = [baseColorTexture, metallicRoughnessTexture];
+      textures.forEach((texture) => {
+        if (texture && !this.textures[texture.index]) {
+          this.textures[texture.index] = device.createTexture({
+            size: [
+              gltf.images[texture.index].width,
+              gltf.images[texture.index].height,
+              1,
+            ],
+            format: 'rgba8unorm',
+            usage:
+              GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
+              GPUTextureUsage.COPY_DST | // eslint-disable-line no-bitwise
+              GPUTextureUsage.RENDER_ATTACHMENT,
+          });
+          device.queue.copyExternalImageToTexture(
+            { source: gltf.images[texture.index] },
+            { texture: this.textures[texture.index] },
+            [
+              gltf.images[texture.index].width,
+              gltf.images[texture.index].height,
+            ]
+          );
+        }
+      });
 
       return createPipeline(
         device,
@@ -137,7 +141,7 @@ export default class Resource {
         mat4.invert(modelInvTr, matrix);
         mat4.transpose(modelInvTr, modelInvTr);
         const matrixBuffer = createGPUBuffer(
-          util.concatArray(matrix as Float32Array, modelInvTr as Float32Array),
+          concatArray(matrix as Float32Array, modelInvTr as Float32Array),
           GPUBufferUsage.UNIFORM
         );
 
@@ -147,7 +151,7 @@ export default class Resource {
 
             primitives: gltf.meshes[node.mesh].map<PerPrimitiveResource>(
               (primitive) => {
-                const { baseColorTexture } =
+                const { baseColorTexture, metallicRoughnessTexture } =
                   gltf.materials[primitive.material].pbrMetallicRoughness;
                 const bindGroupEntries: [GPUBindGroupEntry] = [
                   { binding: 0, resource: { buffer: matrixBuffer } },
@@ -166,6 +170,24 @@ export default class Resource {
                     binding: 2,
                     resource:
                       this.textures[baseColorTexture.index].createView(),
+                  });
+                }
+                if (metallicRoughnessTexture) {
+                  bindGroupEntries.push({
+                    binding: 3,
+                    resource: device.createSampler({
+                      addressModeU: 'repeat',
+                      addressModeV: 'repeat',
+                      magFilter: 'linear',
+                      minFilter: 'linear',
+                    }),
+                  });
+                  bindGroupEntries.push({
+                    binding: 4,
+                    resource:
+                      this.textures[
+                        metallicRoughnessTexture.index
+                      ].createView(),
                   });
                 }
 

@@ -5,4 +5,10 @@ export function concatArray(array0: Float32Array, array1: Float32Array) {
   return concat;
 }
 
-export function dontusethis() {}
+export function toFloat(num: number | undefined, defaultValue = 1) {
+  const n = num !== undefined ? num : defaultValue;
+  if (Number.isInteger(n)) {
+    return `${n}.0`;
+  }
+  return n;
+}
