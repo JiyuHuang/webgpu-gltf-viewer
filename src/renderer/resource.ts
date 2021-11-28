@@ -1,6 +1,7 @@
 import { mat4 } from 'gl-matrix';
 import { GLTF } from '../loader/gltf';
 import createPipeline from './pipeline';
+import * as util from '../util';
 
 type PerPrimitiveResource = {
   indexCount: number;
@@ -15,9 +16,7 @@ type PerPrimitiveResource = {
 export default class Resource {
   meshes: {
     [key: number]: {
-      matrices: Array<mat4>;
-      modelInvTrs: Array<mat4>;
-      matrixBuffer: GPUBuffer;
+      matrixBuffers: Array<GPUBuffer>;
       primitives: Array<PerPrimitiveResource>;
     };
   } = {};
@@ -99,11 +98,11 @@ export default class Resource {
 
     const createGPUBuffer = (
       array: Float32Array | Uint16Array,
-      isIndex = false
+      usage: number
     ) => {
       const buffer = device.createBuffer({
         size: (array.byteLength + 3) & ~3, // eslint-disable-line no-bitwise
-        usage: isIndex ? GPUBufferUsage.INDEX : GPUBufferUsage.VERTEX,
+        usage,
         mappedAtCreation: true,
       });
       const writeArary =
@@ -121,31 +120,30 @@ export default class Resource {
         mat4.multiply(matrix, matrix, node.matrix);
       } else {
         if (node.translation) {
-          mat4.multiply(matrix, matrix, node.translation);
+          mat4.translate(matrix, matrix, node.translation);
         }
         if (node.rotation) {
-          mat4.multiply(matrix, matrix, node.rotation);
+          const rotation = mat4.create();
+          mat4.fromQuat(rotation, node.rotation);
+          mat4.multiply(matrix, matrix, rotation);
         }
         if (node.scale) {
-          mat4.multiply(matrix, matrix, node.scale);
+          mat4.scale(matrix, matrix, node.scale);
         }
       }
 
       if (node.mesh !== undefined) {
-        const modelInverseTranspose = mat4.create();
-        mat4.invert(modelInverseTranspose, matrix);
-        mat4.transpose(modelInverseTranspose, modelInverseTranspose);
+        const modelInvTr = mat4.create();
+        mat4.invert(modelInvTr, matrix);
+        mat4.transpose(modelInvTr, modelInvTr);
+        const matrixBuffer = createGPUBuffer(
+          util.concatArray(matrix as Float32Array, modelInvTr as Float32Array),
+          GPUBufferUsage.UNIFORM
+        );
 
         if (!this.meshes[node.mesh]) {
-          const matrixBuffer = device.createBuffer({
-            size: 4 * 4 * 4 * 2,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
-          });
-
           this.meshes[node.mesh] = {
-            matrices: [matrix],
-            modelInvTrs: [modelInverseTranspose],
-            matrixBuffer,
+            matrixBuffers: [matrixBuffer],
 
             primitives: gltf.meshes[node.mesh].map<PerPrimitiveResource>(
               (primitive) => {
@@ -175,10 +173,21 @@ export default class Resource {
 
                 return {
                   indexCount: primitive.indexCount,
-                  positions: createGPUBuffer(primitive.positions),
-                  normals: createGPUBuffer(primitive.normals),
-                  indices: createGPUBuffer(primitive.indices, true),
-                  uvs: primitive.uvs ? createGPUBuffer(primitive.uvs) : null,
+                  positions: createGPUBuffer(
+                    primitive.positions,
+                    GPUBufferUsage.VERTEX
+                  ),
+                  normals: createGPUBuffer(
+                    primitive.normals,
+                    GPUBufferUsage.VERTEX
+                  ),
+                  indices: createGPUBuffer(
+                    primitive.indices,
+                    GPUBufferUsage.INDEX
+                  ),
+                  uvs: primitive.uvs
+                    ? createGPUBuffer(primitive.uvs, GPUBufferUsage.VERTEX)
+                    : null,
                   pipeline,
                   uniformBindGroup: device.createBindGroup({
                     layout: this.pipelines[pipeline].getBindGroupLayout(1),
@@ -189,8 +198,7 @@ export default class Resource {
             ),
           };
         } else {
-          this.meshes[node.mesh].matrices.push(matrix);
-          this.meshes[node.mesh].modelInvTrs.push(modelInverseTranspose);
+          this.meshes[node.mesh].matrixBuffers.push(matrixBuffer);
         }
       }
 
@@ -206,7 +214,9 @@ export default class Resource {
 
   destroy() {
     Object.entries(this.meshes).forEach(([, meshResource]) => {
-      meshResource.matrixBuffer.destroy();
+      meshResource.matrixBuffers.forEach((matrixBuffer) => {
+        matrixBuffer.destroy();
+      });
       meshResource.primitives.forEach((primResource) => {
         primResource.indices.destroy();
         primResource.positions.destroy();

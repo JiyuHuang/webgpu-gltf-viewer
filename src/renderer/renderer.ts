@@ -99,33 +99,21 @@ export class Renderer {
       passEncoder.setBindGroup(0, this.resource!.camera.bindGroup);
 
       Object.entries(this.resource!.meshes).forEach(([, meshResource]) => {
-        for (let i = 0; i < meshResource.matrices.length; i += 1) {
-          const writeBuffer = (matrix: Float32Array, offset: number) => {
-            this.device.queue.writeBuffer(
-              meshResource.matrixBuffer,
-              offset * 4 * 4 * 4,
-              matrix.buffer,
-              matrix.byteOffset,
-              matrix.byteLength
+        for (let i = 0; i < meshResource.matrixBuffers.length; i += 1) {
+          meshResource.primitives.forEach((primResource) => {
+            passEncoder.setPipeline(
+              this.resource!.pipelines[primResource.pipeline]
             );
-          };
-          writeBuffer(meshResource.matrices[i] as Float32Array, 0);
-          writeBuffer(meshResource.modelInvTrs[i] as Float32Array, 1);
+            passEncoder.setVertexBuffer(0, primResource.positions);
+            passEncoder.setVertexBuffer(1, primResource.normals);
+            if (primResource.uvs) {
+              passEncoder.setVertexBuffer(2, primResource.uvs);
+            }
+            passEncoder.setIndexBuffer(primResource.indices, 'uint16');
+            passEncoder.setBindGroup(1, primResource.uniformBindGroup);
+            passEncoder.drawIndexed(primResource.indexCount);
+          });
         }
-
-        meshResource.primitives.forEach((primResource) => {
-          passEncoder.setPipeline(
-            this.resource!.pipelines[primResource.pipeline]
-          );
-          passEncoder.setVertexBuffer(0, primResource.positions);
-          passEncoder.setVertexBuffer(1, primResource.normals);
-          if (primResource.uvs) {
-            passEncoder.setVertexBuffer(2, primResource.uvs);
-          }
-          passEncoder.setIndexBuffer(primResource.indices, 'uint16');
-          passEncoder.setBindGroup(1, primResource.uniformBindGroup);
-          passEncoder.drawIndexed(primResource.indexCount);
-        });
       });
 
       passEncoder.endPass();

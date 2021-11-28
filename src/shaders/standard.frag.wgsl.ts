@@ -1,10 +1,18 @@
-export default function frag(hasUV: boolean, baseColorFactor = [1, 1, 1, 1]) {
-  const baseColor = baseColorFactor.map((num) => {
+export default function frag(material: any, hasUV: boolean) {
+  function toFloat(num: number | undefined) {
+    if (num === undefined) {
+      return '1.0';
+    }
     if (Number.isInteger(num)) {
       return `${num}.0`;
     }
     return num;
-  });
+  }
+
+  const { baseColorTexture, metallicFactor, roughnessFactor } =
+    material.pbrMetallicRoughness;
+  let { baseColorFactor } = material.pbrMetallicRoughness;
+  baseColorFactor = baseColorFactor || [1, 1, 1, 1];
 
   return /* wgsl */ `
 
@@ -23,7 +31,7 @@ export default function frag(hasUV: boolean, baseColorFactor = [1, 1, 1, 1]) {
       : ''
   }
 
-  let pi = 3.141592653589793;
+  let pi: f32 = 3.141592653589793;
 
   fn phong(color: vec3<f32>,
            l: vec3<f32>,
@@ -49,7 +57,7 @@ export default function frag(hasUV: boolean, baseColorFactor = [1, 1, 1, 1]) {
   {
       let h = normalize(l + v);
       let ndotl = clamp(dot(n, l), 0.0, 1.0);
-      let ndotv = clamp(dot(n, v), 0.0, 1.0);
+      let ndotv = abs(dot(n, v));
       let ndoth = clamp(dot(n, h), 0.0, 1.0);
       let vdoth = clamp(dot(v, h), 0.0, 1.0);
 
@@ -86,11 +94,15 @@ export default function frag(hasUV: boolean, baseColorFactor = [1, 1, 1, 1]) {
           }) -> [[location(0)]] vec4<f32>
   {
       let lightPos = vec3<f32>(2.0, 4.0, 3.0);
-      var color = vec4<f32>(${baseColor[0]},
-                            ${baseColor[1]},
-                            ${baseColor[2]},
-                            ${baseColor[3]});
-      ${hasUV ? 'color = color * textureSample(tex, texSampler, uv);' : ''}
+      var color = vec4<f32>(${toFloat(baseColorFactor[0])},
+                            ${toFloat(baseColorFactor[1])},
+                            ${toFloat(baseColorFactor[2])},
+                            ${toFloat(baseColorFactor[3])});
+      ${
+        baseColorTexture
+          ? 'color = color * textureSample(tex, texSampler, uv);'
+          : ''
+      }
 
       // return vec4<f32>(phong(color.rgb,
       //                        normalize(lightPos - worldPos),
@@ -98,8 +110,8 @@ export default function frag(hasUV: boolean, baseColorFactor = [1, 1, 1, 1]) {
       //                        normalize(normal)),
       //                  color.a);
       return vec4<f32>(brdf(color.rgb,
-                            0.0,
-                            1.0,
+                            ${toFloat(metallicFactor)},
+                            ${toFloat(roughnessFactor)},
                             normalize(lightPos - worldPos),
                             normalize(camera.eye - worldPos),
                             normalize(normal)),

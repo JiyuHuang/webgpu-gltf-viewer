@@ -31,7 +31,7 @@ class Primitive {
     }
     this.positions = getArray(primitive.attributes.POSITION, 3);
     this.normals = getArray(primitive.attributes.NORMAL, 3);
-    if (primitive.attributes.TEXCOORD_0) {
+    if (primitive.attributes.TEXCOORD_0 !== undefined) {
       this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
     }
 

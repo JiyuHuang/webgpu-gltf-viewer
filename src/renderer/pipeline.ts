@@ -7,7 +7,7 @@ export default function createPipeline(
   material: any,
   cameraBindGroupLayout: GPUBindGroupLayout
 ) {
-  const { baseColorFactor, baseColorTexture } = material.pbrMetallicRoughness;
+  const { baseColorTexture } = material.pbrMetallicRoughness;
   const hasUV = baseColorTexture !== undefined;
   function getVertexBufferLayout(
     shaderLocation: number,
@@ -70,7 +70,7 @@ export default function createPipeline(
     },
     fragment: {
       module: device.createShaderModule({
-        code: frag(hasUV, baseColorFactor),
+        code: frag(material, hasUV),
       }),
       entryPoint: 'main',
       targets: [{ format }],
