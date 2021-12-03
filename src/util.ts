@@ -6,10 +6,6 @@ export type TypedArray =
   | Uint32Array
   | Float32Array;
 
-export type NewTypedArray = {
-  new (...args: any): Float32Array;
-};
-
 export function clamp(num: number, min: number, max: number) {
   return Math.min(Math.max(num, min), max);
 }

@@ -1,4 +1,4 @@
-import { TypedArray, NewTypedArray } from '../util';
+import { TypedArray } from '../util';
 
 class GLTFPrimitive {
   indexCount: number;
@@ -17,7 +17,7 @@ class GLTFPrimitive {
     function getArray(idx: number, n: number) {
       const accessor = json.accessors[idx];
       const bufferView = json.bufferViews[accessor.bufferView];
-      const offset = bufferView.byteOffset + (accessor.byteOffset || 0);
+      const offset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
       let stride = bufferView.byteStride / 4;
       stride = stride > n ? stride : n;
 
@@ -52,9 +52,10 @@ class GLTFPrimitive {
       }
 
       if (stride > n) {
-        const strided = new (array.constructor as NewTypedArray)(
-          accessor.count * n
-        );
+        const TypedArrayConstructor = array.constructor as {
+          new (...args: any): TypedArray;
+        };
+        const strided = new TypedArrayConstructor(accessor.count * n);
         for (let i = 0, j = 0; i < strided.length; i += n, j += stride) {
           for (let k = 0; k < n; k += 1) {
             strided[i + k] = array[j + k];

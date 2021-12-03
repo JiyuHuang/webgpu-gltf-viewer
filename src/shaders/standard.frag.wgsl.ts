@@ -116,7 +116,7 @@ export default function frag(material: any, hasUV: boolean) {
           ? `
       let metalRough = textureSample(metalRoughTex, metalRoughSampler, uv);
       metallic = metallic * metalRough.b;
-      roughness = roughness * metalRough.g;
+      roughness = clamp(roughness * metalRough.g, 0.04, 1.0);
       /* wgsl */ `
           : ''
       }

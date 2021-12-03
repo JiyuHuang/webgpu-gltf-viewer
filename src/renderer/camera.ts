@@ -54,7 +54,7 @@ export default class Camera {
     };
 
     this.canvas.onwheel = (event) => {
-      this.radius = clamp(this.radius + event.deltaY * 0.002, 0.1, Infinity);
+      this.radius = clamp(this.radius + event.deltaY * 0.002, 0.01, Infinity);
       this.update();
     };
   }
