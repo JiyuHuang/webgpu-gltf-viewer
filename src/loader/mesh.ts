@@ -1,54 +1,79 @@
+import { TypedArray, NewTypedArray } from '../util';
+
 class GLTFPrimitive {
   indexCount: number;
 
-  indices: Uint16Array;
+  indices: TypedArray;
 
-  positions: Float32Array;
+  positions: TypedArray;
 
-  normals: Float32Array;
+  normals: TypedArray;
 
-  uvs?: Float32Array;
+  uvs?: TypedArray;
 
-  material: number;
+  material: any;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
-    this.indexCount = json.accessors[primitive.indices].count;
-    const indexBufferView =
-      json.bufferViews[json.accessors[primitive.indices].bufferView];
-    this.indices = new Uint16Array(
-      buffer,
-      indexBufferView.byteOffset,
-      indexBufferView.byteLength / Uint16Array.BYTES_PER_ELEMENT
-    );
-
     function getArray(idx: number, n: number) {
-      const bufferView = json.bufferViews[json.accessors[idx].bufferView];
-      const offset =
-        bufferView.byteOffset + (json.accessors[idx].byteOffset || 0);
-      const stride = bufferView.byteStride / 4;
+      const accessor = json.accessors[idx];
+      const bufferView = json.bufferViews[accessor.bufferView];
+      const offset = bufferView.byteOffset + (accessor.byteOffset || 0);
+      let stride = bufferView.byteStride / 4;
+      stride = stride > n ? stride : n;
+
+      let array;
+      switch (accessor.componentType) {
+        case 5120:
+        case 'BYTE':
+          array = new Int8Array(buffer, offset, accessor.count * stride);
+          break;
+        case 5121:
+        case 'UNSIGNED_BYTE':
+          array = new Uint8Array(buffer, offset, accessor.count * stride);
+          break;
+        case 5122:
+        case 'SHORT':
+          array = new Int16Array(buffer, offset, accessor.count * stride);
+          break;
+        case 5123:
+        case 'UNSIGNED_SHORT':
+          array = new Uint16Array(buffer, offset, accessor.count * stride);
+          break;
+        case 5125:
+        case 'UNSIGNED_INT':
+          array = new Uint32Array(buffer, offset, accessor.count * stride);
+          break;
+        case 5126:
+        case 'FLOAT':
+          array = new Float32Array(buffer, offset, accessor.count * stride);
+          break;
+        default:
+          throw new Error('invalid component type');
+      }
+
       if (stride > n) {
-        const interleaved = new Float32Array(
-          buffer,
-          offset,
-          stride * json.accessors[idx].count
+        const strided = new (array.constructor as NewTypedArray)(
+          accessor.count * n
         );
-        const strided = new Float32Array(json.accessors[idx].count * n);
         for (let i = 0, j = 0; i < strided.length; i += n, j += stride) {
           for (let k = 0; k < n; k += 1) {
-            strided[i + k] = interleaved[j + k];
+            strided[i + k] = array[j + k];
           }
         }
         return strided;
       }
-      return new Float32Array(buffer, offset, json.accessors[idx].count * n);
+      return array;
     }
+
+    this.indexCount = json.accessors[primitive.indices].count;
+    this.indices = getArray(primitive.indices, 1);
     this.positions = getArray(primitive.attributes.POSITION, 3);
     this.normals = getArray(primitive.attributes.NORMAL, 3);
     if (primitive.attributes.TEXCOORD_0 !== undefined) {
       this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
     }
 
-    this.material = primitive.material;
+    this.material = json.materials[primitive.material];
   }
 }
 

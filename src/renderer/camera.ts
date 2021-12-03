@@ -1,11 +1,8 @@
 import { vec3, mat4 } from 'gl-matrix';
+import { clamp } from '../util';
 
 const center = vec3.create();
 const up = vec3.fromValues(0, 1, 0);
-
-function clamp(num: number, min: number, max: number) {
-  return Math.min(Math.max(num, min), max);
-}
 
 export default class Camera {
   protected canvas: HTMLCanvasElement;
