@@ -37,7 +37,7 @@ export default function frag(material: any, hasUV: boolean) {
 
   let pi: f32 = 3.141592653589793;
 
-  fn phong(color: vec3<f32>,
+  fn blinnPhong(color: vec3<f32>,
            l: vec3<f32>,
            v: vec3<f32>,
            n: vec3<f32>) -> vec3<f32>
@@ -91,7 +91,7 @@ export default function frag(material: any, hasUV: boolean) {
   }
 
   [[stage(fragment)]]
-  fn main([[location(0)]] normal: vec3<f32>,
+  fn main([[location(0)]] vNormal: vec3<f32>,
           [[location(1)]] worldPos: vec3<f32>,
           ${
             hasUV ? '[[location(2)]] uv: vec2<f32>' : ''
@@ -116,23 +116,27 @@ export default function frag(material: any, hasUV: boolean) {
           ? `
       let metalRough = textureSample(metalRoughTex, metalRoughSampler, uv);
       metallic = metallic * metalRough.b;
-      roughness = clamp(roughness * metalRough.g, 0.04, 1.0);
+      roughness = roughness * metalRough.g;
+      /* wgsl */ `
+          : ''
+      }
+      roughness = clamp(roughness, 0.04, 1.0);
+
+      let lightDir = normalize(lightPos - worldPos);
+      let viewDir = normalize(camera.eye - worldPos);
+
+      var normal = normalize(vNormal);
+      ${
+        material.doubleSided
+          ? `
+      if (dot(normal, viewDir) < 0.0) {
+        normal = -normal;
+      }
       /* wgsl */ `
           : ''
       }
 
-      // return vec4<f32>(phong(color.rgb,
-      //                        normalize(lightPos - worldPos),
-      //                        normalize(camera.eye - worldPos),
-      //                        normalize(normal)),
-      //                  color.a);
-      return vec4<f32>(brdf(color.rgb,
-                            metallic,
-                            roughness,
-                            normalize(lightPos - worldPos),
-                            normalize(camera.eye - worldPos),
-                            normalize(normal)),
-                       color.a);
+      return vec4<f32>(brdf(color.rgb, metallic, roughness, lightDir, viewDir, normal), color.a);
   }
   `;
 }

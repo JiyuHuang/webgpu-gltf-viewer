@@ -92,7 +92,7 @@ export default function createPipeline(
     },
     primitive: {
       topology: 'triangle-list',
-      cullMode: 'back',
+      cullMode: material.doubleSided ? 'none' : 'back',
     },
     depthStencil: {
       depthWriteEnabled: true,
