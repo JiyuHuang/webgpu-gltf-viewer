@@ -5,10 +5,12 @@ import { joinArray, TypedArray } from '../util';
 
 type Primitive = {
   indexCount: number;
+  indexFormat: GPUIndexFormat;
   positions: GPUBuffer;
   normals: GPUBuffer;
   indices: GPUBuffer;
   uvs: GPUBuffer | null;
+  tangents: GPUBuffer | null;
   pipeline: GPURenderPipeline | undefined;
   uniformBindGroup: GPUBindGroup | undefined;
 };
@@ -116,6 +118,8 @@ export default class Scene {
             matrixBuffer: undefined,
             primitives: gltf.meshes[node.mesh].map<Primitive>((primitive) => ({
               indexCount: primitive.indexCount,
+              indexFormat:
+                primitive.indices instanceof Uint16Array ? 'uint16' : 'uint32',
               positions: createGPUBuffer(
                 primitive.positions,
                 GPUBufferUsage.VERTEX
@@ -127,6 +131,9 @@ export default class Scene {
               indices: createGPUBuffer(primitive.indices, GPUBufferUsage.INDEX),
               uvs: primitive.uvs
                 ? createGPUBuffer(primitive.uvs, GPUBufferUsage.VERTEX)
+                : null,
+              tangents: primitive.tangents
+                ? createGPUBuffer(primitive.tangents, GPUBufferUsage.VERTEX)
                 : null,
               pipeline: undefined,
               uniformBindGroup: undefined,
@@ -157,7 +164,12 @@ export default class Scene {
         const { material } = gltf.meshes[Number(meshIndex)][primIndex];
         const { baseColorTexture, metallicRoughnessTexture } =
           material.pbrMetallicRoughness;
-        const textures = [baseColorTexture, metallicRoughnessTexture];
+        const { normalTexture } = material;
+        const textures = [
+          baseColorTexture,
+          metallicRoughnessTexture,
+          normalTexture,
+        ];
 
         textures.forEach((texture) => {
           if (texture && !this.textures[texture.index]) {
@@ -188,6 +200,8 @@ export default class Scene {
           device,
           contextFormat,
           material,
+          primitive.uvs !== null,
+          primitive.tangents !== null,
           mesh.matrices.length / 2,
           cameraBindGroupLayout
         );

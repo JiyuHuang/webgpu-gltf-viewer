@@ -11,6 +11,8 @@ class GLTFPrimitive {
 
   uvs?: TypedArray;
 
+  tangents?: TypedArray;
+
   material: any;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
@@ -66,6 +68,7 @@ class GLTFPrimitive {
       return array;
     }
 
+    this.material = json.materials[primitive.material];
     this.indexCount = json.accessors[primitive.indices].count;
     this.indices = getArray(primitive.indices, 1);
     this.positions = getArray(primitive.attributes.POSITION, 3);
@@ -73,8 +76,9 @@ class GLTFPrimitive {
     if (primitive.attributes.TEXCOORD_0 !== undefined) {
       this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
     }
-
-    this.material = json.materials[primitive.material];
+    if (primitive.attributes.TANGENT !== undefined) {
+      this.tangents = getArray(primitive.attributes.TANGENT, 4);
+    }
   }
 }
 

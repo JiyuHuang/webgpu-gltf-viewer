@@ -1,4 +1,8 @@
-export default function vert(instanceCount: number, hasUV: boolean = true) {
+export default function vert(
+  instanceCount: number,
+  hasUV: boolean,
+  hasTangent: boolean
+) {
   return /* wgsl */ `
 
   [[block]] struct Camera
@@ -23,20 +27,32 @@ export default function vert(instanceCount: number, hasUV: boolean = true) {
       [[location(0)]] normal: vec3<f32>;
       [[location(1)]] worldPos: vec3<f32>;
       ${hasUV ? '[[location(2)]] uv: vec2<f32>;' : ''}
+      ${hasTangent ? '[[location(3)]] tangent: vec3<f32>;' : ''}
+      ${hasTangent ? '[[location(4)]] bitangent: vec3<f32>;' : ''}
   };
 
   [[stage(vertex)]]
   fn main([[builtin(instance_index)]] instanceIndex : u32,
           [[location(0)]] pos: vec3<f32>,
           [[location(1)]] normal: vec3<f32>,
-          ${hasUV ? '[[location(2)]] uv: vec2<f32>' : ''}) -> VertexOutput
+          ${hasUV ? '[[location(2)]] uv: vec2<f32>,' : ''}
+          ${hasTangent ? '[[location(3)]] tangent: vec4<f32>,' : ''})
+          -> VertexOutput
   {
-      var model = models.model[instanceIndex];
+      let model = models.model[instanceIndex];
       var v: VertexOutput;
       v.Position = camera.projView * model.matrix * vec4<f32>(pos, 1.0);
       v.normal = normalize((model.invTr * vec4<f32>(normal, 0.0)).xyz);
       v.worldPos = (model.matrix * vec4<f32>(pos, 1.0)).xyz;
       ${hasUV ? 'v.uv = uv;' : ''}
+      ${
+        hasTangent
+          ? `
+      v.tangent = normalize((model.matrix * vec4<f32>(tangent.xyz, 0.0)).xyz);
+      v.bitangent = cross(v.normal, v.tangent) * tangent.w;
+      /* wgsl */ `
+          : ''
+      }
       return v;
   }
   `;

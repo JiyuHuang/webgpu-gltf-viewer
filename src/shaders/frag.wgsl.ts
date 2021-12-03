@@ -1,6 +1,10 @@
 import { toFloat } from '../util';
 
-export default function frag(material: any, hasUV: boolean) {
+export default function frag(
+  material: any,
+  hasUV: boolean,
+  hasTangent: boolean
+) {
   const {
     baseColorTexture,
     metallicRoughnessTexture,
@@ -9,6 +13,7 @@ export default function frag(material: any, hasUV: boolean) {
   } = material.pbrMetallicRoughness;
   let { baseColorFactor } = material.pbrMetallicRoughness;
   baseColorFactor = baseColorFactor || [1, 1, 1, 1];
+  const { normalTexture } = material;
 
   return /* wgsl */ `
 
@@ -31,6 +36,14 @@ export default function frag(material: any, hasUV: boolean) {
       ? `
   [[group(1), binding(3)]] var metalRoughSampler: sampler;
   [[group(1), binding(4)]] var metalRoughTex: texture_2d<f32>;
+  /* wgsl */ `
+      : ''
+  }
+  ${
+    normalTexture
+      ? `
+  [[group(1), binding(5)]] var normalSampler: sampler;
+  [[group(1), binding(6)]] var normalTex: texture_2d<f32>;
   /* wgsl */ `
       : ''
   }
@@ -93,9 +106,10 @@ export default function frag(material: any, hasUV: boolean) {
   [[stage(fragment)]]
   fn main([[location(0)]] vNormal: vec3<f32>,
           [[location(1)]] worldPos: vec3<f32>,
-          ${
-            hasUV ? '[[location(2)]] uv: vec2<f32>' : ''
-          }) -> [[location(0)]] vec4<f32>
+          ${hasUV ? '[[location(2)]] uv: vec2<f32>,' : ''}
+          ${hasTangent ? '[[location(3)]] tangent: vec3<f32>,' : ''}
+          ${hasTangent ? '[[location(4)]] bitangent: vec3<f32>,' : ''})
+          -> [[location(0)]] vec4<f32>
   {
       let lightPos = vec3<f32>(2.0, 4.0, 3.0);
 
@@ -125,7 +139,18 @@ export default function frag(material: any, hasUV: boolean) {
       let lightDir = normalize(lightPos - worldPos);
       let viewDir = normalize(camera.eye - worldPos);
 
+      ${
+        normalTexture && hasTangent
+          ? `
+      var normal = textureSample(normalTex, normalSampler, uv).rgb;
+      normal = normal * 2.0 - 1.0;
+      normal = normal.x * tangent + normal.y * bitangent + normal.z * vNormal;
+      normal = normalize(normal);
+      /* wgsl */ `
+          : `
       var normal = normalize(vNormal);
+      /* wgsl */ `
+      }
       ${
         material.doubleSided
           ? `

@@ -106,7 +106,10 @@ export class Renderer {
           if (primitive.uvs) {
             passEncoder.setVertexBuffer(2, primitive.uvs);
           }
-          passEncoder.setIndexBuffer(primitive.indices, 'uint16');
+          if (primitive.tangents) {
+            passEncoder.setVertexBuffer(3, primitive.tangents);
+          }
+          passEncoder.setIndexBuffer(primitive.indices, primitive.indexFormat);
           passEncoder.setBindGroup(1, primitive.uniformBindGroup!);
           passEncoder.drawIndexed(
             primitive.indexCount,
