@@ -3,21 +3,21 @@ import { GLTF } from '../loader/gltf';
 import createPipeline from './pipeline';
 import { concatArray } from '../util';
 
-type PerPrimitiveResource = {
+type Primitive = {
   indexCount: number;
   positions: GPUBuffer;
   normals: GPUBuffer;
   indices: GPUBuffer;
   uvs: GPUBuffer | null;
   pipeline: number;
-  uniformBindGroup: GPUBindGroup;
+  uniformBindGroup?: GPUBindGroup;
 };
 
-export default class Resource {
+export default class Scene {
   meshes: {
     [key: number]: {
       matrixBuffers: Array<GPUBuffer>;
-      primitives: Array<PerPrimitiveResource>;
+      primitives: Array<Primitive>;
     };
   } = {};
 
@@ -149,75 +149,70 @@ export default class Resource {
           this.meshes[node.mesh] = {
             matrixBuffers: [matrixBuffer],
 
-            primitives: gltf.meshes[node.mesh].map<PerPrimitiveResource>(
-              (primitive) => {
-                const { baseColorTexture, metallicRoughnessTexture } =
-                  gltf.materials[primitive.material].pbrMetallicRoughness;
-                const bindGroupEntries: [GPUBindGroupEntry] = [
-                  { binding: 0, resource: { buffer: matrixBuffer } },
-                ];
-                if (baseColorTexture) {
-                  bindGroupEntries.push({
-                    binding: 1,
-                    resource: device.createSampler({
-                      addressModeU: 'repeat',
-                      addressModeV: 'repeat',
-                      magFilter: 'linear',
-                      minFilter: 'linear',
-                    }),
-                  });
-                  bindGroupEntries.push({
-                    binding: 2,
-                    resource:
-                      this.textures[baseColorTexture.index].createView(),
-                  });
-                }
-                if (metallicRoughnessTexture) {
-                  bindGroupEntries.push({
-                    binding: 3,
-                    resource: device.createSampler({
-                      addressModeU: 'repeat',
-                      addressModeV: 'repeat',
-                      magFilter: 'linear',
-                      minFilter: 'linear',
-                    }),
-                  });
-                  bindGroupEntries.push({
-                    binding: 4,
-                    resource:
-                      this.textures[
-                        metallicRoughnessTexture.index
-                      ].createView(),
-                  });
-                }
-
-                const pipeline = primitive.material;
-
-                return {
-                  indexCount: primitive.indexCount,
-                  positions: createGPUBuffer(
-                    primitive.positions,
-                    GPUBufferUsage.VERTEX
-                  ),
-                  normals: createGPUBuffer(
-                    primitive.normals,
-                    GPUBufferUsage.VERTEX
-                  ),
-                  indices: createGPUBuffer(
-                    primitive.indices,
-                    GPUBufferUsage.INDEX
-                  ),
-                  uvs: primitive.uvs
-                    ? createGPUBuffer(primitive.uvs, GPUBufferUsage.VERTEX)
-                    : null,
-                  pipeline,
-                  uniformBindGroup: device.createBindGroup({
-                    layout: this.pipelines[pipeline].getBindGroupLayout(1),
-                    entries: bindGroupEntries,
+            primitives: gltf.meshes[node.mesh].map<Primitive>((primitive) => {
+              const { baseColorTexture, metallicRoughnessTexture } =
+                gltf.materials[primitive.material].pbrMetallicRoughness;
+              const bindGroupEntries: [GPUBindGroupEntry] = [
+                { binding: 0, resource: { buffer: matrixBuffer } },
+              ];
+              if (baseColorTexture) {
+                bindGroupEntries.push({
+                  binding: 1,
+                  resource: device.createSampler({
+                    addressModeU: 'repeat',
+                    addressModeV: 'repeat',
+                    magFilter: 'linear',
+                    minFilter: 'linear',
                   }),
-                };
+                });
+                bindGroupEntries.push({
+                  binding: 2,
+                  resource: this.textures[baseColorTexture.index].createView(),
+                });
               }
-            ),
+              if (metallicRoughnessTexture) {
+                bindGroupEntries.push({
+                  binding: 3,
+                  resource: device.createSampler({
+                    addressModeU: 'repeat',
+                    addressModeV: 'repeat',
+                    magFilter: 'linear',
+                    minFilter: 'linear',
+                  }),
+                });
+                bindGroupEntries.push({
+                  binding: 4,
+                  resource:
+                    this.textures[metallicRoughnessTexture.index].createView(),
+                });
+              }
+
+              const pipeline = primitive.material;
+
+              return {
+                indexCount: primitive.indexCount,
+                positions: createGPUBuffer(
+                  primitive.positions,
+                  GPUBufferUsage.VERTEX
+                ),
+                normals: createGPUBuffer(
+                  primitive.normals,
+                  GPUBufferUsage.VERTEX
+                ),
+                indices: createGPUBuffer(
+                  primitive.indices,
+                  GPUBufferUsage.INDEX
+                ),
+                uvs: primitive.uvs
+                  ? createGPUBuffer(primitive.uvs, GPUBufferUsage.VERTEX)
+                  : null,
+                pipeline,
+                uniformBindGroup: device.createBindGroup({
+                  layout: this.pipelines[pipeline].getBindGroupLayout(1),
+                  entries: bindGroupEntries,
+                }),
+              };
+            }),
           };
         } else {
           this.meshes[node.mesh].matrixBuffers.push(matrixBuffer);
@@ -235,15 +230,15 @@ export default class Resource {
   }
 
   destroy() {
-    Object.entries(this.meshes).forEach(([, meshResource]) => {
-      meshResource.matrixBuffers.forEach((matrixBuffer) => {
+    Object.entries(this.meshes).forEach(([, mesh]) => {
+      mesh.matrixBuffers.forEach((matrixBuffer) => {
         matrixBuffer.destroy();
       });
-      meshResource.primitives.forEach((primResource) => {
-        primResource.indices.destroy();
-        primResource.positions.destroy();
-        primResource.normals.destroy();
-        primResource.uvs?.destroy();
+      mesh.primitives.forEach((primitive) => {
+        primitive.indices.destroy();
+        primitive.positions.destroy();
+        primitive.normals.destroy();
+        primitive.uvs?.destroy();
       });
     });
     Object.entries(this.textures).forEach(([, texture]) => texture.destroy());

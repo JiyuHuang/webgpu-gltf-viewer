@@ -1,5 +1,5 @@
 import { GLTF, loadGLTF } from '../loader/gltf';
-import Resource from './resource';
+import Scene from './scene';
 import Camera from './camera';
 
 export class Renderer {
@@ -15,7 +15,7 @@ export class Renderer {
 
   gltf?: GLTF;
 
-  resource?: Resource;
+  scene?: Scene;
 
   camera: Camera;
 
@@ -82,7 +82,7 @@ export class Renderer {
 
       const projView = this.camera.projView as Float32Array;
       this.device.queue.writeBuffer(
-        this.resource!.camera.projViewBuffer,
+        this.scene!.camera.projViewBuffer,
         0,
         projView.buffer,
         projView.byteOffset,
@@ -90,28 +90,26 @@ export class Renderer {
       );
       const eye = this.camera.eye as Float32Array;
       this.device.queue.writeBuffer(
-        this.resource!.camera.eyeBuffer,
+        this.scene!.camera.eyeBuffer,
         0,
         eye.buffer,
         eye.byteOffset,
         eye.byteLength
       );
-      passEncoder.setBindGroup(0, this.resource!.camera.bindGroup);
+      passEncoder.setBindGroup(0, this.scene!.camera.bindGroup);
 
-      Object.entries(this.resource!.meshes).forEach(([, meshResource]) => {
-        for (let i = 0; i < meshResource.matrixBuffers.length; i += 1) {
-          meshResource.primitives.forEach((primResource) => {
-            passEncoder.setPipeline(
-              this.resource!.pipelines[primResource.pipeline]
-            );
-            passEncoder.setVertexBuffer(0, primResource.positions);
-            passEncoder.setVertexBuffer(1, primResource.normals);
-            if (primResource.uvs) {
-              passEncoder.setVertexBuffer(2, primResource.uvs);
+      Object.entries(this.scene!.meshes).forEach(([, mesh]) => {
+        for (let i = 0; i < mesh.matrixBuffers.length; i += 1) {
+          mesh.primitives.forEach((primitive) => {
+            passEncoder.setPipeline(this.scene!.pipelines[primitive.pipeline]);
+            passEncoder.setVertexBuffer(0, primitive.positions);
+            passEncoder.setVertexBuffer(1, primitive.normals);
+            if (primitive.uvs) {
+              passEncoder.setVertexBuffer(2, primitive.uvs);
             }
-            passEncoder.setIndexBuffer(primResource.indices, 'uint16');
-            passEncoder.setBindGroup(1, primResource.uniformBindGroup);
-            passEncoder.drawIndexed(primResource.indexCount);
+            passEncoder.setIndexBuffer(primitive.indices, 'uint16');
+            passEncoder.setBindGroup(1, primitive.uniformBindGroup!);
+            passEncoder.drawIndexed(primitive.indexCount);
           });
         }
       });
@@ -125,8 +123,8 @@ export class Renderer {
 
   async load(url: string) {
     this.gltf = await loadGLTF(url);
-    this.resource?.destroy();
-    this.resource = new Resource(
+    this.scene?.destroy();
+    this.scene = new Scene(
       this.gltf,
       this.gltf.scene,
       this.device,

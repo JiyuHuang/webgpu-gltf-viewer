@@ -1,4 +1,4 @@
-import { Mesh, loadMeshes } from './mesh';
+import { GLTFMesh, loadMeshes } from './mesh';
 
 function loadJson(url: string) {
   return new Promise<any>((resolve) => {
@@ -45,13 +45,13 @@ export class GLTF {
 
   cameras?: Array<any>;
 
-  meshes: Array<Mesh>;
+  meshes: Array<GLTFMesh>;
 
   materials: Array<any>;
 
   images: Array<ImageBitmap>;
 
-  constructor(json: any, meshes: Array<Mesh>, images: Array<ImageBitmap>) {
+  constructor(json: any, meshes: Array<GLTFMesh>, images: Array<ImageBitmap>) {
     this.scenes = json.scenes;
     this.scene = json.scene;
     this.nodes = json.nodes;
@@ -66,7 +66,7 @@ export async function loadGLTF(url: string) {
   const dir = url.substring(0, url.lastIndexOf('/'));
   const json = await loadJson(url);
 
-  let meshes: Array<Mesh>;
+  let meshes: Array<GLTFMesh>;
   const meshesLoaded = Promise.all(
     json.buffers.map((buffer: any) =>
       loadBuffer(`${dir}/${buffer.uri}`)

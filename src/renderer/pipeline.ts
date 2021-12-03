@@ -10,6 +10,7 @@ export default function createPipeline(
   const { baseColorTexture, metallicRoughnessTexture } =
     material.pbrMetallicRoughness;
   const hasUV = baseColorTexture !== undefined;
+
   function getVertexBufferLayout(
     shaderLocation: number,
     n: number
