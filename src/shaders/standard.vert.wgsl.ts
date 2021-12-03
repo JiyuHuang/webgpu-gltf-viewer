@@ -1,4 +1,4 @@
-export default function vert(hasUV: boolean = true) {
+export default function vert(instanceCount: number, hasUV: boolean = true) {
   return /* wgsl */ `
 
   [[block]] struct Camera
@@ -7,14 +7,17 @@ export default function vert(hasUV: boolean = true) {
   };
   [[group(0), binding(0)]] var<uniform> camera: Camera;
 
-  [[block]] struct Mat4
-  {
-      model: mat4x4<f32>;
-      modelInvTr: mat4x4<f32>;
+  struct Model {
+      matrix: mat4x4<f32>;
+      invTr: mat4x4<f32>;
   };
-  [[group(1), binding(0)]] var<uniform> mat4: Mat4;
+  [[block]] struct Models
+  {
+      model: [[stride(128)]] array<Model, ${instanceCount}>;
+  };
+  [[group(1), binding(0)]] var<uniform> models: Models;
 
-  struct VertOut
+  struct VertexOutput
   {
       [[builtin(position)]] Position: vec4<f32>;
       [[location(0)]] normal: vec3<f32>;
@@ -23,14 +26,16 @@ export default function vert(hasUV: boolean = true) {
   };
 
   [[stage(vertex)]]
-  fn main([[location(0)]] pos: vec3<f32>,
+  fn main([[builtin(instance_index)]] instanceIndex : u32,
+          [[location(0)]] pos: vec3<f32>,
           [[location(1)]] normal: vec3<f32>,
-          ${hasUV ? '[[location(2)]] uv: vec2<f32>' : ''}) -> VertOut
+          ${hasUV ? '[[location(2)]] uv: vec2<f32>' : ''}) -> VertexOutput
   {
-      var v: VertOut;
-      v.Position = camera.projView * mat4.model * vec4<f32>(pos, 1.0);
-      v.normal = normalize((mat4.modelInvTr * vec4<f32>(normal, 0.0)).xyz);
-      v.worldPos = (mat4.model * vec4<f32>(pos, 1.0)).xyz;
+      var model = models.model[instanceIndex];
+      var v: VertexOutput;
+      v.Position = camera.projView * model.matrix * vec4<f32>(pos, 1.0);
+      v.normal = normalize((model.invTr * vec4<f32>(normal, 0.0)).xyz);
+      v.worldPos = (model.matrix * vec4<f32>(pos, 1.0)).xyz;
       ${hasUV ? 'v.uv = uv;' : ''}
       return v;
   }

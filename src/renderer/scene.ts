@@ -1,7 +1,7 @@
 import { mat4 } from 'gl-matrix';
 import { GLTF } from '../loader/gltf';
 import createPipeline from './pipeline';
-import { concatArray } from '../util';
+import { joinArray } from '../util';
 
 type Primitive = {
   indexCount: number;
@@ -9,21 +9,21 @@ type Primitive = {
   normals: GPUBuffer;
   indices: GPUBuffer;
   uvs: GPUBuffer | null;
-  pipeline: number;
-  uniformBindGroup?: GPUBindGroup;
+  material: any;
+  pipeline: GPURenderPipeline | undefined;
+  uniformBindGroup: GPUBindGroup | undefined;
 };
 
 export default class Scene {
   meshes: {
     [key: number]: {
-      matrixBuffers: Array<GPUBuffer>;
+      matrices: Array<mat4>;
+      matrixBuffer: GPUBuffer | undefined;
       primitives: Array<Primitive>;
     };
   } = {};
 
   textures: { [key: number]: GPUTexture } = {};
-
-  pipelines: Array<GPURenderPipeline>;
 
   camera: {
     projViewBuffer: GPUBuffer;
@@ -62,43 +62,6 @@ export default class Scene {
         ],
       }),
     };
-
-    this.pipelines = gltf.materials.map((material) => {
-      const { baseColorTexture, metallicRoughnessTexture } =
-        material.pbrMetallicRoughness;
-      const textures = [baseColorTexture, metallicRoughnessTexture];
-      textures.forEach((texture) => {
-        if (texture && !this.textures[texture.index]) {
-          this.textures[texture.index] = device.createTexture({
-            size: [
-              gltf.images[texture.index].width,
-              gltf.images[texture.index].height,
-              1,
-            ],
-            format: 'rgba8unorm',
-            usage:
-              GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
-              GPUTextureUsage.COPY_DST | // eslint-disable-line no-bitwise
-              GPUTextureUsage.RENDER_ATTACHMENT,
-          });
-          device.queue.copyExternalImageToTexture(
-            { source: gltf.images[texture.index] },
-            { texture: this.textures[texture.index] },
-            [
-              gltf.images[texture.index].width,
-              gltf.images[texture.index].height,
-            ]
-          );
-        }
-      });
-
-      return createPipeline(
-        device,
-        contextFormat,
-        material,
-        cameraBindGroupLayout
-      );
-    });
 
     const createGPUBuffer = (
       array: Float32Array | Uint16Array,
@@ -140,82 +103,34 @@ export default class Scene {
         const modelInvTr = mat4.create();
         mat4.invert(modelInvTr, matrix);
         mat4.transpose(modelInvTr, modelInvTr);
-        const matrixBuffer = createGPUBuffer(
-          concatArray(matrix as Float32Array, modelInvTr as Float32Array),
-          GPUBufferUsage.UNIFORM
-        );
 
         if (!this.meshes[node.mesh]) {
           this.meshes[node.mesh] = {
-            matrixBuffers: [matrixBuffer],
+            matrices: [matrix, modelInvTr],
+            matrixBuffer: undefined,
 
-            primitives: gltf.meshes[node.mesh].map<Primitive>((primitive) => {
-              const { baseColorTexture, metallicRoughnessTexture } =
-                gltf.materials[primitive.material].pbrMetallicRoughness;
-              const bindGroupEntries: [GPUBindGroupEntry] = [
-                { binding: 0, resource: { buffer: matrixBuffer } },
-              ];
-              if (baseColorTexture) {
-                bindGroupEntries.push({
-                  binding: 1,
-                  resource: device.createSampler({
-                    addressModeU: 'repeat',
-                    addressModeV: 'repeat',
-                    magFilter: 'linear',
-                    minFilter: 'linear',
-                  }),
-                });
-                bindGroupEntries.push({
-                  binding: 2,
-                  resource: this.textures[baseColorTexture.index].createView(),
-                });
-              }
-              if (metallicRoughnessTexture) {
-                bindGroupEntries.push({
-                  binding: 3,
-                  resource: device.createSampler({
-                    addressModeU: 'repeat',
-                    addressModeV: 'repeat',
-                    magFilter: 'linear',
-                    minFilter: 'linear',
-                  }),
-                });
-                bindGroupEntries.push({
-                  binding: 4,
-                  resource:
-                    this.textures[metallicRoughnessTexture.index].createView(),
-                });
-              }
-
-              const pipeline = primitive.material;
-
-              return {
-                indexCount: primitive.indexCount,
-                positions: createGPUBuffer(
-                  primitive.positions,
-                  GPUBufferUsage.VERTEX
-                ),
-                normals: createGPUBuffer(
-                  primitive.normals,
-                  GPUBufferUsage.VERTEX
-                ),
-                indices: createGPUBuffer(
-                  primitive.indices,
-                  GPUBufferUsage.INDEX
-                ),
-                uvs: primitive.uvs
-                  ? createGPUBuffer(primitive.uvs, GPUBufferUsage.VERTEX)
-                  : null,
-                pipeline,
-                uniformBindGroup: device.createBindGroup({
-                  layout: this.pipelines[pipeline].getBindGroupLayout(1),
-                  entries: bindGroupEntries,
-                }),
-              };
-            }),
+            primitives: gltf.meshes[node.mesh].map<Primitive>((primitive) => ({
+              indexCount: primitive.indexCount,
+              positions: createGPUBuffer(
+                primitive.positions,
+                GPUBufferUsage.VERTEX
+              ),
+              normals: createGPUBuffer(
+                primitive.normals,
+                GPUBufferUsage.VERTEX
+              ),
+              indices: createGPUBuffer(primitive.indices, GPUBufferUsage.INDEX),
+              uvs: primitive.uvs
+                ? createGPUBuffer(primitive.uvs, GPUBufferUsage.VERTEX)
+                : null,
+              material: gltf.materials[primitive.material],
+              pipeline: undefined,
+              uniformBindGroup: undefined,
+            })),
           };
         } else {
-          this.meshes[node.mesh].matrixBuffers.push(matrixBuffer);
+          this.meshes[node.mesh].matrices.push(matrix);
+          this.meshes[node.mesh].matrices.push(modelInvTr);
         }
       }
 
@@ -227,13 +142,82 @@ export default class Scene {
     gltf.scenes[sceneIndex].nodes.forEach((nodeIndex: number) => {
       createResource(gltf.nodes[nodeIndex]);
     });
+
+    Object.entries(this.meshes).forEach(([, mesh]) => {
+      mesh.matrixBuffer = createGPUBuffer(
+        joinArray(mesh.matrices as Array<Float32Array>),
+        GPUBufferUsage.UNIFORM
+      );
+
+      mesh.primitives.forEach((primitive) => {
+        const { baseColorTexture, metallicRoughnessTexture } =
+          primitive.material.pbrMetallicRoughness;
+        const textures = [baseColorTexture, metallicRoughnessTexture];
+
+        textures.forEach((texture) => {
+          if (texture && !this.textures[texture.index]) {
+            this.textures[texture.index] = device.createTexture({
+              size: [
+                gltf.images[texture.index].width,
+                gltf.images[texture.index].height,
+                1,
+              ],
+              format: 'rgba8unorm',
+              usage:
+                GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
+                GPUTextureUsage.COPY_DST | // eslint-disable-line no-bitwise
+                GPUTextureUsage.RENDER_ATTACHMENT,
+            });
+            device.queue.copyExternalImageToTexture(
+              { source: gltf.images[texture.index] },
+              { texture: this.textures[texture.index] },
+              [
+                gltf.images[texture.index].width,
+                gltf.images[texture.index].height,
+              ]
+            );
+          }
+        });
+
+        primitive.pipeline = createPipeline(
+          device,
+          contextFormat,
+          primitive.material,
+          mesh.matrices.length / 2,
+          cameraBindGroupLayout
+        );
+
+        const bindGroupEntries: [GPUBindGroupEntry] = [
+          { binding: 0, resource: { buffer: mesh.matrixBuffer! } },
+        ];
+        textures.forEach((texture, n) => {
+          if (texture) {
+            bindGroupEntries.push({
+              binding: n * 2 + 1,
+              resource: device.createSampler({
+                addressModeU: 'repeat',
+                addressModeV: 'repeat',
+                magFilter: 'linear',
+                minFilter: 'linear',
+              }),
+            });
+            bindGroupEntries.push({
+              binding: n * 2 + 2,
+              resource: this.textures[texture.index].createView(),
+            });
+          }
+        });
+        primitive.uniformBindGroup = device.createBindGroup({
+          layout: primitive.pipeline!.getBindGroupLayout(1),
+          entries: bindGroupEntries,
+        });
+      });
+    });
   }
 
   destroy() {
     Object.entries(this.meshes).forEach(([, mesh]) => {
-      mesh.matrixBuffers.forEach((matrixBuffer) => {
-        matrixBuffer.destroy();
-      });
+      mesh.matrixBuffer!.destroy();
       mesh.primitives.forEach((primitive) => {
         primitive.indices.destroy();
         primitive.positions.destroy();

@@ -11,5 +11,7 @@
     "project": "./tsconfig.json"
   },
   "plugins": ["@typescript-eslint"],
-  "rules": {}
+  "rules": {
+    "no-param-reassign": ["error", { "props": false }]
+  }
 }

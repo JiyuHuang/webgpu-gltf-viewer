@@ -5,6 +5,7 @@ export default function createPipeline(
   device: GPUDevice,
   format: GPUTextureFormat,
   material: any,
+  instanceCount: number,
   cameraBindGroupLayout: GPUBindGroupLayout
 ) {
   const { baseColorTexture, metallicRoughnessTexture } =
@@ -77,7 +78,7 @@ export default function createPipeline(
     }),
     vertex: {
       module: device.createShaderModule({
-        code: vert(hasUV),
+        code: vert(instanceCount, hasUV),
       }),
       entryPoint: 'main',
       buffers: vertexBufferLayout,

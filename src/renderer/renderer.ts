@@ -99,19 +99,20 @@ export class Renderer {
       passEncoder.setBindGroup(0, this.scene!.camera.bindGroup);
 
       Object.entries(this.scene!.meshes).forEach(([, mesh]) => {
-        for (let i = 0; i < mesh.matrixBuffers.length; i += 1) {
-          mesh.primitives.forEach((primitive) => {
-            passEncoder.setPipeline(this.scene!.pipelines[primitive.pipeline]);
-            passEncoder.setVertexBuffer(0, primitive.positions);
-            passEncoder.setVertexBuffer(1, primitive.normals);
-            if (primitive.uvs) {
-              passEncoder.setVertexBuffer(2, primitive.uvs);
-            }
-            passEncoder.setIndexBuffer(primitive.indices, 'uint16');
-            passEncoder.setBindGroup(1, primitive.uniformBindGroup!);
-            passEncoder.drawIndexed(primitive.indexCount);
-          });
-        }
+        mesh.primitives.forEach((primitive) => {
+          passEncoder.setPipeline(primitive.pipeline!);
+          passEncoder.setVertexBuffer(0, primitive.positions);
+          passEncoder.setVertexBuffer(1, primitive.normals);
+          if (primitive.uvs) {
+            passEncoder.setVertexBuffer(2, primitive.uvs);
+          }
+          passEncoder.setIndexBuffer(primitive.indices, 'uint16');
+          passEncoder.setBindGroup(1, primitive.uniformBindGroup!);
+          passEncoder.drawIndexed(
+            primitive.indexCount,
+            mesh.matrices.length / 2
+          );
+        });
       });
 
       passEncoder.endPass();
