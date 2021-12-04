@@ -12,8 +12,14 @@ export default function createPipeline(
 ) {
   const { baseColorTexture, metallicRoughnessTexture } =
     material.pbrMetallicRoughness;
-  const { normalTexture } = material;
-  const textures = [baseColorTexture, metallicRoughnessTexture, normalTexture];
+  const { normalTexture, occlusionTexture, emissiveTexture } = material;
+  const textures = [
+    baseColorTexture,
+    metallicRoughnessTexture,
+    normalTexture,
+    occlusionTexture,
+    emissiveTexture,
+  ];
 
   function getVertexBufferLayout(
     shaderLocation: number,

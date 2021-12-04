@@ -164,11 +164,13 @@ export default class Scene {
         const { material } = gltf.meshes[Number(meshIndex)][primIndex];
         const { baseColorTexture, metallicRoughnessTexture } =
           material.pbrMetallicRoughness;
-        const { normalTexture } = material;
+        const { normalTexture, occlusionTexture, emissiveTexture } = material;
         const textures = [
           baseColorTexture,
           metallicRoughnessTexture,
           normalTexture,
+          occlusionTexture,
+          emissiveTexture,
         ];
 
         textures.forEach((texture) => {

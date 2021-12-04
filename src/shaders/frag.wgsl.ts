@@ -13,7 +13,9 @@ export default function frag(
   } = material.pbrMetallicRoughness;
   let { baseColorFactor } = material.pbrMetallicRoughness;
   baseColorFactor = baseColorFactor || [1, 1, 1, 1];
-  const { normalTexture } = material;
+  const { normalTexture, occlusionTexture, emissiveTexture } = material;
+  let { emissiveFactor } = material;
+  emissiveFactor = emissiveFactor || [0, 0, 0];
 
   return /* wgsl */ `
 
@@ -44,6 +46,22 @@ export default function frag(
       ? `
   [[group(1), binding(5)]] var normalSampler: sampler;
   [[group(1), binding(6)]] var normalTex: texture_2d<f32>;
+  /* wgsl */ `
+      : ''
+  }
+  ${
+    occlusionTexture
+      ? `
+  [[group(1), binding(7)]] var occlusionSampler: sampler;
+  [[group(1), binding(8)]] var occlusionTex: texture_2d<f32>;
+  /* wgsl */ `
+      : ''
+  }
+  ${
+    emissiveTexture
+      ? `
+  [[group(1), binding(9)]] var emissiveSampler: sampler;
+  [[group(1), binding(10)]] var emissiveTex: texture_2d<f32>;
   /* wgsl */ `
       : ''
   }
@@ -161,7 +179,21 @@ export default function frag(
           : ''
       }
 
-      return vec4<f32>(brdf(color.rgb, metallic, roughness, lightDir, viewDir, normal), color.a);
+      ${
+        occlusionTexture
+          ? 'let ao = textureSample(occlusionTex, occlusionSampler, uv).r;'
+          : 'let ao = 1.0;'
+      }
+      var emissive = vec3<f32>(${toFloat(emissiveFactor[0])},
+                               ${toFloat(emissiveFactor[1])},
+                               ${toFloat(emissiveFactor[2])});
+      ${
+        emissiveTexture
+          ? 'emissive = emissive * textureSample(emissiveTex, emissiveSampler, uv).rgb;'
+          : ''
+      }
+
+      return vec4<f32>(brdf(color.rgb, metallic, roughness, lightDir, viewDir, normal) * ao + emissive, color.a);
   }
   `;
 }
