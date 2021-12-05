@@ -122,12 +122,10 @@ export default class Scene {
 
         textures.forEach((texture) => {
           if (texture && !this.textures[texture.index]) {
+            const imageIndex = gltf.textures[texture.index].source;
+            const { width, height } = gltf.images[imageIndex];
             this.textures[texture.index] = device.createTexture({
-              size: [
-                gltf.images[texture.index].width,
-                gltf.images[texture.index].height,
-                1,
-              ],
+              size: [width, height, 1],
               format: 'rgba8unorm',
               usage:
                 GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
@@ -135,12 +133,9 @@ export default class Scene {
                 GPUTextureUsage.RENDER_ATTACHMENT,
             });
             device.queue.copyExternalImageToTexture(
-              { source: gltf.images[texture.index] },
+              { source: gltf.images[imageIndex] },
               { texture: this.textures[texture.index] },
-              [
-                gltf.images[texture.index].width,
-                gltf.images[texture.index].height,
-              ]
+              [width, height]
             );
           }
         });

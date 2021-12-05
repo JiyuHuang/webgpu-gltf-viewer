@@ -1,3 +1,5 @@
+import { vec2, vec3 } from 'gl-matrix';
+
 export function clamp(num: number, min: number, max: number) {
   return Math.min(Math.max(num, min), max);
 }
@@ -105,4 +107,91 @@ export function createGPUBuffer(
   writeArary.set(array);
   buffer.unmap();
   return buffer;
+}
+
+export function generateNormals(indices: TypedArray, positions: TypedArray) {
+  const normals = new Float32Array(positions.length);
+  for (let i = 0; i < indices.length; i += 3) {
+    const triIndices = [];
+    for (let n = 0; n < 3; n += 1) {
+      triIndices.push(indices[i + n]);
+    }
+    const triangle = triIndices.map((vertexIndex) => {
+      const index = vertexIndex * 3;
+      return vec3.fromValues(
+        positions[index],
+        positions[index + 1],
+        positions[index + 2]
+      );
+    });
+
+    const dv1 = vec3.create();
+    vec3.sub(dv1, triangle[1], triangle[0]);
+    const dv2 = vec3.create();
+    vec3.sub(dv2, triangle[2], triangle[0]);
+    const normal = vec3.create();
+    vec3.cross(normal, vec3.normalize(dv1, dv1), vec3.normalize(dv1, dv2));
+
+    for (let n = 0; n < 3; n += 1) {
+      const index = (i + n) * 3;
+      for (let t = 0; t < 3; t += 1) {
+        normals[index + t] += normal[t];
+      }
+    }
+  }
+  return normals;
+}
+
+export function generateTangents(
+  indices: TypedArray,
+  positions: TypedArray,
+  normals: TypedArray,
+  uvs: TypedArray
+) {
+  const tangents = new Float32Array((normals.length / 3) * 4);
+  for (let i = 0; i < indices.length; i += 3) {
+    const triIndices = [];
+    for (let n = 0; n < 3; n += 1) {
+      triIndices.push(indices[i + n]);
+    }
+    const pos = triIndices.map((vertexIndex) => {
+      const index = vertexIndex * 3;
+      return vec3.fromValues(
+        positions[index],
+        positions[index + 1],
+        positions[index + 2]
+      );
+    });
+    const uv = triIndices.map((vertexIndex) => {
+      const index = vertexIndex * 2;
+      return vec2.fromValues(uvs![index], uvs![index + 1]);
+    });
+
+    const dv1 = vec3.create();
+    vec3.sub(dv1, pos[1], pos[0]);
+    const dv2 = vec3.create();
+    vec3.sub(dv2, pos[2], pos[0]);
+    const duv1 = vec2.create();
+    vec2.sub(duv1, uv[1], uv[0]);
+    const duv2 = vec2.create();
+    vec2.sub(duv2, uv[2], uv[0]);
+
+    const sign = duv2[1] * duv1[0] - duv1[1] * duv2[0] >= 0 ? 1 : -1;
+    const tangent = vec3.create();
+    vec3.sub(
+      tangent,
+      vec3.scale(dv1, dv1, duv2[1]),
+      vec3.scale(dv2, dv2, duv1[1])
+    );
+    vec3.normalize(tangent, tangent);
+
+    for (let n = 0; n < 3; n += 1) {
+      const index = (i + n) * 4;
+      for (let t = 0; t < 3; t += 1) {
+        tangents[index + t] += tangent[t];
+      }
+      tangents[index + 3] = sign;
+    }
+  }
+  return tangents;
 }

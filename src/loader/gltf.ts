@@ -49,6 +49,8 @@ export class GLTF {
 
   images: Array<ImageBitmap>;
 
+  textures: Array<any>;
+
   constructor(json: any, meshes: Array<GLTFMesh>, images: Array<ImageBitmap>) {
     this.scenes = json.scenes;
     this.scene = json.scene;
@@ -56,6 +58,7 @@ export class GLTF {
     this.cameras = json.cameras;
     this.meshes = meshes;
     this.images = images;
+    this.textures = json.textures;
   }
 }
 

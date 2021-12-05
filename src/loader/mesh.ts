@@ -1,4 +1,10 @@
-import { newTypedArray, toIndexArray, TypedArray } from '../util';
+import {
+  generateNormals,
+  generateTangents,
+  newTypedArray,
+  toIndexArray,
+  TypedArray,
+} from '../util';
 
 export class GLTFPrimitive {
   indexCount: number;
@@ -18,8 +24,11 @@ export class GLTFPrimitive {
   material: any;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
-    this.material = json.materials[primitive.material];
-    this.indexCount = json.accessors[primitive.indices].count;
+    if (json.materials && primitive.material !== undefined) {
+      this.material = json.materials[primitive.material];
+    } else {
+      this.material = { pbrMetallicRoughness: {} };
+    }
 
     function getArray(idx: number, n: number) {
       const accessor = json.accessors[idx];
@@ -51,14 +60,34 @@ export class GLTFPrimitive {
     }
 
     this.indices = toIndexArray(getArray(primitive.indices, 1));
+    this.indexCount = json.accessors[primitive.indices].count;
+
     this.positions = getArray(primitive.attributes.POSITION, 3);
-    this.normals = getArray(primitive.attributes.NORMAL, 3);
+
+    if (primitive.attributes.NORMAL !== undefined) {
+      this.normals = getArray(primitive.attributes.NORMAL, 3);
+    } else {
+      this.normals = generateNormals(this.indices, this.positions);
+    }
+
     if (primitive.attributes.TEXCOORD_0 !== undefined) {
       this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
     }
-    if (primitive.attributes.TANGENT !== undefined) {
+
+    if (
+      primitive.attributes.TANGENT !== undefined &&
+      primitive.attributes.NORMAL !== undefined
+    ) {
       this.tangents = getArray(primitive.attributes.TANGENT, 4);
+    } else if (this.material.normalTexture) {
+      this.tangents = generateTangents(
+        this.indices,
+        this.positions,
+        this.normals,
+        this.uvs!
+      );
     }
+
     if (primitive.attributes.COLOR_0 !== undefined) {
       this.colors = getArray(primitive.attributes.COLOR_0, 4);
     }
