@@ -1,19 +1,8 @@
 import { mat4 } from 'gl-matrix';
 import { GLTF } from '../loader/gltf';
 import createPipeline from './pipeline';
-import { joinArray, TypedArray } from '../util';
-
-type Primitive = {
-  indexCount: number;
-  indexFormat: GPUIndexFormat;
-  positions: GPUBuffer;
-  normals: GPUBuffer;
-  indices: GPUBuffer;
-  uvs: GPUBuffer | null;
-  tangents: GPUBuffer | null;
-  pipeline: GPURenderPipeline | undefined;
-  uniformBindGroup: GPUBindGroup | undefined;
-};
+import Primitive from './primitive';
+import { joinArray, createGPUBuffer } from '../util';
 
 export default class Scene {
   meshes: {
@@ -64,31 +53,6 @@ export default class Scene {
       }),
     };
 
-    const createGPUBuffer = (array: TypedArray, usage: number) => {
-      const buffer = device.createBuffer({
-        size: (array.byteLength + 3) & ~3, // eslint-disable-line no-bitwise
-        usage,
-        mappedAtCreation: true,
-      });
-      let writeArary;
-      if (array instanceof Int8Array) {
-        writeArary = new Int8Array(buffer.getMappedRange());
-      } else if (array instanceof Uint8Array) {
-        writeArary = new Uint8Array(buffer.getMappedRange());
-      } else if (array instanceof Int16Array) {
-        writeArary = new Int16Array(buffer.getMappedRange());
-      } else if (array instanceof Uint16Array) {
-        writeArary = new Uint16Array(buffer.getMappedRange());
-      } else if (array instanceof Uint32Array) {
-        writeArary = new Uint32Array(buffer.getMappedRange());
-      } else {
-        writeArary = new Float32Array(buffer.getMappedRange());
-      }
-      writeArary.set(array);
-      buffer.unmap();
-      return buffer;
-    };
-
     const createResource = (node: any, parentMatrix = mat4.create()) => {
       const matrix = mat4.clone(parentMatrix);
       if (node.matrix) {
@@ -116,28 +80,9 @@ export default class Scene {
           this.meshes[node.mesh] = {
             matrices: [matrix, modelInvTr],
             matrixBuffer: undefined,
-            primitives: gltf.meshes[node.mesh].map<Primitive>((primitive) => ({
-              indexCount: primitive.indexCount,
-              indexFormat:
-                primitive.indices instanceof Uint16Array ? 'uint16' : 'uint32',
-              positions: createGPUBuffer(
-                primitive.positions,
-                GPUBufferUsage.VERTEX
-              ),
-              normals: createGPUBuffer(
-                primitive.normals,
-                GPUBufferUsage.VERTEX
-              ),
-              indices: createGPUBuffer(primitive.indices, GPUBufferUsage.INDEX),
-              uvs: primitive.uvs
-                ? createGPUBuffer(primitive.uvs, GPUBufferUsage.VERTEX)
-                : null,
-              tangents: primitive.tangents
-                ? createGPUBuffer(primitive.tangents, GPUBufferUsage.VERTEX)
-                : null,
-              pipeline: undefined,
-              uniformBindGroup: undefined,
-            })),
+            primitives: gltf.meshes[node.mesh].map<Primitive>(
+              (primitive) => new Primitive(primitive, device)
+            ),
           };
         } else {
           this.meshes[node.mesh].matrices.push(matrix);
@@ -157,7 +102,8 @@ export default class Scene {
     Object.entries(this.meshes).forEach(([meshIndex, mesh]) => {
       mesh.matrixBuffer = createGPUBuffer(
         joinArray(mesh.matrices as Array<Float32Array>),
-        GPUBufferUsage.UNIFORM
+        GPUBufferUsage.UNIFORM,
+        device
       );
 
       mesh.primitives.forEach((primitive, primIndex) => {
@@ -172,6 +118,8 @@ export default class Scene {
           occlusionTexture,
           emissiveTexture,
         ];
+
+        primitive.isTransparent = material.alphaMode === 'BLEND';
 
         textures.forEach((texture) => {
           if (texture && !this.textures[texture.index]) {

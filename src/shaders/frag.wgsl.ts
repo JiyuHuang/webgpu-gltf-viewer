@@ -17,6 +17,9 @@ export default function frag(
   let { emissiveFactor } = material;
   emissiveFactor = emissiveFactor || [0, 0, 0];
 
+  let { alphaCutoff } = material;
+  alphaCutoff = alphaCutoff !== undefined ? alphaCutoff : 0.5;
+
   return /* wgsl */ `
 
   [[block]] struct Camera
@@ -129,7 +132,7 @@ export default function frag(
           ${hasTangent ? '[[location(4)]] bitangent: vec3<f32>,' : ''})
           -> [[location(0)]] vec4<f32>
   {
-      let lightPos = vec3<f32>(2.0, 4.0, 3.0);
+      let lightPos = vec3<f32>(200.0, 400.0, 300.0);
 
       var color = vec4<f32>(${toFloat(baseColorFactor[0])},
                             ${toFloat(baseColorFactor[1])},
@@ -138,6 +141,16 @@ export default function frag(
       ${
         baseColorTexture
           ? 'color = color * textureSample(tex, texSampler, uv);'
+          : ''
+      }
+      ${
+        material.alphaMode === 'MASK'
+          ? `
+      if (color.a < ${toFloat(alphaCutoff)})
+      {
+        discard;
+      }
+      /* wgsl */ `
           : ''
       }
 

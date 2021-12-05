@@ -90,7 +90,29 @@ export default function createPipeline(
         code: frag(material, hasUV, hasTangent),
       }),
       entryPoint: 'main',
-      targets: [{ format }],
+      targets: [
+        {
+          format,
+          blend: {
+            color:
+              material.alphaMode !== 'BLEND'
+                ? { operation: 'add', srcFactor: 'one', dstFactor: 'zero' }
+                : {
+                    operation: 'add',
+                    srcFactor: 'src-alpha',
+                    dstFactor: 'one-minus-src-alpha',
+                  },
+            alpha:
+              material.alphaMode !== 'BLEND'
+                ? { operation: 'add', srcFactor: 'zero', dstFactor: 'one' }
+                : {
+                    operation: 'add',
+                    srcFactor: 'src-alpha',
+                    dstFactor: 'one-minus-src-alpha',
+                  },
+          },
+        },
+      ],
     },
     primitive: {
       topology: 'triangle-list',

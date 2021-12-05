@@ -100,21 +100,16 @@ export class Renderer {
 
       Object.entries(this.scene!.meshes).forEach(([, mesh]) => {
         mesh.primitives.forEach((primitive) => {
-          passEncoder.setPipeline(primitive.pipeline!);
-          passEncoder.setVertexBuffer(0, primitive.positions);
-          passEncoder.setVertexBuffer(1, primitive.normals);
-          if (primitive.uvs) {
-            passEncoder.setVertexBuffer(2, primitive.uvs);
+          if (!primitive.isTransparent) {
+            primitive.draw(passEncoder, mesh.matrices.length / 2);
           }
-          if (primitive.tangents) {
-            passEncoder.setVertexBuffer(3, primitive.tangents);
+        });
+      });
+      Object.entries(this.scene!.meshes).forEach(([, mesh]) => {
+        mesh.primitives.forEach((primitive) => {
+          if (primitive.isTransparent) {
+            primitive.draw(passEncoder, mesh.matrices.length / 2);
           }
-          passEncoder.setIndexBuffer(primitive.indices, primitive.indexFormat);
-          passEncoder.setBindGroup(1, primitive.uniformBindGroup!);
-          passEncoder.drawIndexed(
-            primitive.indexCount,
-            mesh.matrices.length / 2
-          );
         });
       });
 

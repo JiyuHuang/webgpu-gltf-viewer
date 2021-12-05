@@ -1,9 +1,9 @@
-import { TypedArray } from '../util';
+import { newTypedArray, toIndexArray, TypedArray } from '../util';
 
-class GLTFPrimitive {
+export class GLTFPrimitive {
   indexCount: number;
 
-  indices: TypedArray;
+  indices: Uint16Array | Uint32Array;
 
   positions: TypedArray;
 
@@ -16,6 +16,9 @@ class GLTFPrimitive {
   material: any;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
+    this.material = json.materials[primitive.material];
+    this.indexCount = json.accessors[primitive.indices].count;
+
     function getArray(idx: number, n: number) {
       const accessor = json.accessors[idx];
       const bufferView = json.bufferViews[accessor.bufferView];
@@ -23,35 +26,12 @@ class GLTFPrimitive {
       let stride = bufferView.byteStride / 4;
       stride = stride > n ? stride : n;
 
-      let array;
-      switch (accessor.componentType) {
-        case 5120:
-        case 'BYTE':
-          array = new Int8Array(buffer, offset, accessor.count * stride);
-          break;
-        case 5121:
-        case 'UNSIGNED_BYTE':
-          array = new Uint8Array(buffer, offset, accessor.count * stride);
-          break;
-        case 5122:
-        case 'SHORT':
-          array = new Int16Array(buffer, offset, accessor.count * stride);
-          break;
-        case 5123:
-        case 'UNSIGNED_SHORT':
-          array = new Uint16Array(buffer, offset, accessor.count * stride);
-          break;
-        case 5125:
-        case 'UNSIGNED_INT':
-          array = new Uint32Array(buffer, offset, accessor.count * stride);
-          break;
-        case 5126:
-        case 'FLOAT':
-          array = new Float32Array(buffer, offset, accessor.count * stride);
-          break;
-        default:
-          throw new Error('invalid component type');
-      }
+      const array = newTypedArray(
+        accessor.componentType,
+        buffer,
+        offset,
+        accessor.count * stride
+      );
 
       if (stride > n) {
         const TypedArrayConstructor = array.constructor as {
@@ -68,9 +48,7 @@ class GLTFPrimitive {
       return array;
     }
 
-    this.material = json.materials[primitive.material];
-    this.indexCount = json.accessors[primitive.indices].count;
-    this.indices = getArray(primitive.indices, 1);
+    this.indices = toIndexArray(getArray(primitive.indices, 1));
     this.positions = getArray(primitive.attributes.POSITION, 3);
     this.normals = getArray(primitive.attributes.NORMAL, 3);
     if (primitive.attributes.TEXCOORD_0 !== undefined) {
