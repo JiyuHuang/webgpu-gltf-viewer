@@ -1,15 +1,19 @@
 import vert from '../shaders/vert.wgsl';
 import frag from '../shaders/frag.wgsl';
+import Primitive from './primitive';
 
 export default function createPipeline(
   device: GPUDevice,
   format: GPUTextureFormat,
   material: any,
-  hasUV: boolean,
-  hasTangent: boolean,
+  primitive: Primitive,
   instanceCount: number,
   cameraBindGroupLayout: GPUBindGroupLayout
 ) {
+  const hasUV = primitive.uvs !== null;
+  const hasTangent = primitive.tangents !== null;
+  const hasVertexColor = primitive.colors !== null;
+
   const { baseColorTexture, metallicRoughnessTexture } =
     material.pbrMetallicRoughness;
   const { normalTexture, occlusionTexture, emissiveTexture } = material;
@@ -43,6 +47,9 @@ export default function createPipeline(
     vertexBufferLayout.push(getVertexBufferLayout(2));
   }
   if (hasTangent) {
+    vertexBufferLayout.push(getVertexBufferLayout(4));
+  }
+  if (hasVertexColor) {
     vertexBufferLayout.push(getVertexBufferLayout(4));
   }
 
@@ -79,14 +86,14 @@ export default function createPipeline(
     }),
     vertex: {
       module: device.createShaderModule({
-        code: vert(instanceCount, hasUV, hasTangent),
+        code: vert(instanceCount, hasUV, hasTangent, hasVertexColor),
       }),
       entryPoint: 'main',
       buffers: vertexBufferLayout,
     },
     fragment: {
       module: device.createShaderModule({
-        code: frag(material, hasUV, hasTangent),
+        code: frag(material, hasUV, hasTangent, hasVertexColor),
       }),
       entryPoint: 'main',
       targets: [

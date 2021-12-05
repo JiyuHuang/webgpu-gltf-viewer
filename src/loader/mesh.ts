@@ -13,6 +13,8 @@ export class GLTFPrimitive {
 
   tangents?: TypedArray;
 
+  colors?: TypedArray;
+
   material: any;
 
   constructor(json: any, primitive: any, buffer: ArrayBuffer) {
@@ -56,6 +58,9 @@ export class GLTFPrimitive {
     }
     if (primitive.attributes.TANGENT !== undefined) {
       this.tangents = getArray(primitive.attributes.TANGENT, 4);
+    }
+    if (primitive.attributes.COLOR_0 !== undefined) {
+      this.colors = getArray(primitive.attributes.COLOR_0, 4);
     }
   }
 }

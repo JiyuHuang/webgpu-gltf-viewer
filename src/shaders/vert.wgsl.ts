@@ -1,7 +1,8 @@
 export default function vert(
   instanceCount: number,
   hasUV: boolean,
-  hasTangent: boolean
+  hasTangent: boolean,
+  hasVertexColor: boolean
 ) {
   let inLocation = 1;
   let outLocation = 1;
@@ -44,6 +45,12 @@ export default function vert(
       [[location(${(outLocation += 1)})]] bitangent: vec3<f32>; /* wgsl */ `
           : ''
       }
+      ${
+        hasVertexColor
+          ? `
+      [[location(${(outLocation += 1)})]] color: vec4<f32>; /* wgsl */ `
+          : ''
+      }
   };
 
   [[stage(vertex)]]
@@ -61,6 +68,12 @@ export default function vert(
               ? `
           [[location(${(inLocation += 1)})]] tangent: vec4<f32>, /* wgsl */ `
               : ''
+          }
+          ${
+            hasVertexColor
+              ? `
+          [[location(${(inLocation += 1)})]] color: vec4<f32>, /* wgsl */ `
+              : ''
           }) -> VertexOutput
   {
       let model = models.model[instanceIndex];
@@ -76,6 +89,7 @@ export default function vert(
       v.bitangent = cross(v.normal, v.tangent) * tangent.w; /* wgsl */ `
           : ''
       }
+      ${hasVertexColor ? 'v.color = color;' : ''}
       return v;
   }`;
 }

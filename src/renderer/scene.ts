@@ -149,8 +149,7 @@ export default class Scene {
           device,
           contextFormat,
           material,
-          primitive.uvs !== null,
-          primitive.tangents !== null,
+          primitive,
           mesh.matrices.length / 2,
           cameraBindGroupLayout
         );

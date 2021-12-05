@@ -3,7 +3,8 @@ import { toFloat } from '../util';
 export default function frag(
   material: any,
   hasUV: boolean,
-  hasTangent: boolean
+  hasTangent: boolean,
+  hasVertexColor: boolean
 ) {
   const {
     baseColorTexture,
@@ -138,6 +139,12 @@ export default function frag(
           [[location(${(location += 1)})]] tangent: vec3<f32>,
           [[location(${(location += 1)})]] bitangent: vec3<f32>, /* wgsl */ `
               : ''
+          }
+          ${
+            hasVertexColor
+              ? `
+          [[location(${(location += 1)})]] vColor: vec4<f32>, /* wgsl */ `
+              : ''
           }) -> [[location(0)]] vec4<f32>
   {
       let lightPos = vec3<f32>(200.0, 400.0, 300.0);
@@ -151,6 +158,8 @@ export default function frag(
           ? 'color = color * textureSample(tex, texSampler, uv);'
           : ''
       }
+      ${hasVertexColor ? 'color = color * vColor;' : ''}
+
       ${
         material.alphaMode === 'MASK'
           ? `

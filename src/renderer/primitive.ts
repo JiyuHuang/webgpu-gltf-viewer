@@ -18,6 +18,8 @@ export default class Primitive {
 
   tangents: GPUBuffer | null;
 
+  colors: GPUBuffer | null;
+
   pipeline: GPURenderPipeline | undefined;
 
   uniformBindGroup: GPUBindGroup | undefined;
@@ -47,6 +49,9 @@ export default class Primitive {
     this.tangents = primitive.tangents
       ? createGPUBuffer(primitive.tangents, GPUBufferUsage.VERTEX, device)
       : null;
+    this.colors = primitive.colors
+      ? createGPUBuffer(primitive.colors, GPUBufferUsage.VERTEX, device)
+      : null;
   }
 
   draw(passEncoder: GPURenderPassEncoder, instanceCount: number) {
@@ -60,6 +65,10 @@ export default class Primitive {
     }
     if (this.tangents) {
       passEncoder.setVertexBuffer(location, this.tangents);
+      location += 1;
+    }
+    if (this.colors) {
+      passEncoder.setVertexBuffer(location, this.colors);
       location += 1;
     }
     passEncoder.setIndexBuffer(this.indices, this.indexFormat);
