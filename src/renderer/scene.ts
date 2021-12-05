@@ -75,12 +75,11 @@ export default class Scene {
         const modelInvTr = mat4.create();
         mat4.invert(modelInvTr, matrix);
         mat4.transpose(modelInvTr, modelInvTr);
-
         if (!this.meshes[node.mesh]) {
           this.meshes[node.mesh] = {
             matrices: [matrix, modelInvTr],
             matrixBuffer: undefined,
-            primitives: gltf.meshes[node.mesh].map<Primitive>(
+            primitives: gltf.meshes[node.mesh].map(
               (primitive) => new Primitive(primitive, device)
             ),
           };
@@ -188,10 +187,7 @@ export default class Scene {
     Object.entries(this.meshes).forEach(([, mesh]) => {
       mesh.matrixBuffer!.destroy();
       mesh.primitives.forEach((primitive) => {
-        primitive.indices.destroy();
-        primitive.positions.destroy();
-        primitive.normals.destroy();
-        primitive.uvs?.destroy();
+        primitive.destroy();
       });
     });
     Object.entries(this.textures).forEach(([, texture]) => texture.destroy());

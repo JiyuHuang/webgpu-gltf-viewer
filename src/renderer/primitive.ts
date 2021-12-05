@@ -53,14 +53,25 @@ export default class Primitive {
     passEncoder.setPipeline(this.pipeline!);
     passEncoder.setVertexBuffer(0, this.positions);
     passEncoder.setVertexBuffer(1, this.normals);
+    let location = 2;
     if (this.uvs) {
-      passEncoder.setVertexBuffer(2, this.uvs);
+      passEncoder.setVertexBuffer(location, this.uvs);
+      location += 1;
     }
     if (this.tangents) {
-      passEncoder.setVertexBuffer(3, this.tangents);
+      passEncoder.setVertexBuffer(location, this.tangents);
+      location += 1;
     }
     passEncoder.setIndexBuffer(this.indices, this.indexFormat);
     passEncoder.setBindGroup(1, this.uniformBindGroup!);
     passEncoder.drawIndexed(this.indexCount, instanceCount);
+  }
+
+  destroy() {
+    this.indices.destroy();
+    this.positions.destroy();
+    this.normals.destroy();
+    this.uvs?.destroy();
+    this.tangents?.destroy();
   }
 }

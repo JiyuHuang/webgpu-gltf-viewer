@@ -68,7 +68,7 @@ export class Renderer {
     this.camera = new Camera(canvas);
   }
 
-  protected render() {
+  render() {
     const frame = () => {
       const commandEncoder = this.device.createCommandEncoder();
       this.renderPassDesc.colorAttachments = [
@@ -117,20 +117,23 @@ export class Renderer {
       this.device.queue.submit([commandEncoder.finish()]);
       requestAnimationFrame(frame);
     };
+
     requestAnimationFrame(frame);
   }
 
   async load(url: string) {
     this.gltf = await loadGLTF(url);
     this.scene?.destroy();
-    this.scene = new Scene(
-      this.gltf,
-      this.gltf.scene,
-      this.device,
-      this.contextFormat
-    );
-    this.camera.reset();
-    this.render();
+    if (this.gltf.scene !== undefined) {
+      this.scene = new Scene(
+        this.gltf,
+        this.gltf.scene,
+        this.device,
+        this.contextFormat
+      );
+      this.camera.reset();
+      this.render();
+    }
   }
 }
 

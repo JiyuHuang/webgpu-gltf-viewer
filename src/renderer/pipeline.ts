@@ -21,14 +21,13 @@ export default function createPipeline(
     emissiveTexture,
   ];
 
-  function getVertexBufferLayout(
-    shaderLocation: number,
-    n: number
-  ): GPUVertexBufferLayout {
+  let slotIndex = -1;
+  function getVertexBufferLayout(n: number): GPUVertexBufferLayout {
+    slotIndex += 1;
     return {
       attributes: [
         {
-          shaderLocation,
+          shaderLocation: slotIndex,
           offset: 0,
           format: `float32x${n}` as GPUVertexFormat,
         },
@@ -37,14 +36,14 @@ export default function createPipeline(
     };
   }
   const vertexBufferLayout = [
-    getVertexBufferLayout(0, 3),
-    getVertexBufferLayout(1, 3),
+    getVertexBufferLayout(3),
+    getVertexBufferLayout(3),
   ];
   if (hasUV) {
-    vertexBufferLayout.push(getVertexBufferLayout(2, 2));
+    vertexBufferLayout.push(getVertexBufferLayout(2));
   }
   if (hasTangent) {
-    vertexBufferLayout.push(getVertexBufferLayout(3, 4));
+    vertexBufferLayout.push(getVertexBufferLayout(4));
   }
 
   const bindGroupLayoutEntries: [GPUBindGroupLayoutEntry] = [

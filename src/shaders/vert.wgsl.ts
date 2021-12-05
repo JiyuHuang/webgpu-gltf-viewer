@@ -3,6 +3,11 @@ export default function vert(
   hasUV: boolean,
   hasTangent: boolean
 ) {
+  let inLocation = 1;
+  let outLocation = 1;
+
+  /* eslint-disable no-return-assign */
+
   return /* wgsl */ `
 
   [[block]] struct Camera
@@ -26,18 +31,37 @@ export default function vert(
       [[builtin(position)]] Position: vec4<f32>;
       [[location(0)]] normal: vec3<f32>;
       [[location(1)]] worldPos: vec3<f32>;
-      ${hasUV ? '[[location(2)]] uv: vec2<f32>;' : ''}
-      ${hasTangent ? '[[location(3)]] tangent: vec3<f32>;' : ''}
-      ${hasTangent ? '[[location(4)]] bitangent: vec3<f32>;' : ''}
+      ${
+        hasUV
+          ? `
+      [[location(${(outLocation += 1)})]] uv: vec2<f32>; /* wgsl */ `
+          : ''
+      }
+      ${
+        hasTangent
+          ? `
+      [[location(${(outLocation += 1)})]] tangent: vec3<f32>;
+      [[location(${(outLocation += 1)})]] bitangent: vec3<f32>; /* wgsl */ `
+          : ''
+      }
   };
 
   [[stage(vertex)]]
   fn main([[builtin(instance_index)]] instanceIndex : u32,
           [[location(0)]] pos: vec3<f32>,
           [[location(1)]] normal: vec3<f32>,
-          ${hasUV ? '[[location(2)]] uv: vec2<f32>,' : ''}
-          ${hasTangent ? '[[location(3)]] tangent: vec4<f32>,' : ''})
-          -> VertexOutput
+          ${
+            hasUV
+              ? `
+          [[location(${(inLocation += 1)})]] uv: vec2<f32>, /* wgsl */ `
+              : ''
+          }
+          ${
+            hasTangent
+              ? `
+          [[location(${(inLocation += 1)})]] tangent: vec4<f32>, /* wgsl */ `
+              : ''
+          }) -> VertexOutput
   {
       let model = models.model[instanceIndex];
       var v: VertexOutput;
@@ -49,11 +73,9 @@ export default function vert(
         hasTangent
           ? `
       v.tangent = normalize((model.matrix * vec4<f32>(tangent.xyz, 0.0)).xyz);
-      v.bitangent = cross(v.normal, v.tangent) * tangent.w;
-      /* wgsl */ `
+      v.bitangent = cross(v.normal, v.tangent) * tangent.w; /* wgsl */ `
           : ''
       }
       return v;
-  }
-  `;
+  }`;
 }

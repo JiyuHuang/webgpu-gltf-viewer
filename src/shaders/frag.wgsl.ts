@@ -20,6 +20,10 @@ export default function frag(
   let { alphaCutoff } = material;
   alphaCutoff = alphaCutoff !== undefined ? alphaCutoff : 0.5;
 
+  let location = 1;
+
+  /* eslint-disable no-return-assign */
+
   return /* wgsl */ `
 
   [[block]] struct Camera
@@ -32,40 +36,35 @@ export default function frag(
     baseColorTexture
       ? `
   [[group(1), binding(1)]] var texSampler: sampler;
-  [[group(1), binding(2)]] var tex: texture_2d<f32>;
-  /* wgsl */ `
+  [[group(1), binding(2)]] var tex: texture_2d<f32>; /* wgsl */ `
       : ''
   }
   ${
     metallicRoughnessTexture
       ? `
   [[group(1), binding(3)]] var metalRoughSampler: sampler;
-  [[group(1), binding(4)]] var metalRoughTex: texture_2d<f32>;
-  /* wgsl */ `
+  [[group(1), binding(4)]] var metalRoughTex: texture_2d<f32>; /* wgsl */ `
       : ''
   }
   ${
     normalTexture
       ? `
   [[group(1), binding(5)]] var normalSampler: sampler;
-  [[group(1), binding(6)]] var normalTex: texture_2d<f32>;
-  /* wgsl */ `
+  [[group(1), binding(6)]] var normalTex: texture_2d<f32>; /* wgsl */ `
       : ''
   }
   ${
     occlusionTexture
       ? `
   [[group(1), binding(7)]] var occlusionSampler: sampler;
-  [[group(1), binding(8)]] var occlusionTex: texture_2d<f32>;
-  /* wgsl */ `
+  [[group(1), binding(8)]] var occlusionTex: texture_2d<f32>; /* wgsl */ `
       : ''
   }
   ${
     emissiveTexture
       ? `
   [[group(1), binding(9)]] var emissiveSampler: sampler;
-  [[group(1), binding(10)]] var emissiveTex: texture_2d<f32>;
-  /* wgsl */ `
+  [[group(1), binding(10)]] var emissiveTex: texture_2d<f32>; /* wgsl */ `
       : ''
   }
 
@@ -127,10 +126,19 @@ export default function frag(
   [[stage(fragment)]]
   fn main([[location(0)]] vNormal: vec3<f32>,
           [[location(1)]] worldPos: vec3<f32>,
-          ${hasUV ? '[[location(2)]] uv: vec2<f32>,' : ''}
-          ${hasTangent ? '[[location(3)]] tangent: vec3<f32>,' : ''}
-          ${hasTangent ? '[[location(4)]] bitangent: vec3<f32>,' : ''})
-          -> [[location(0)]] vec4<f32>
+          ${
+            hasUV
+              ? `
+          [[location(${(location += 1)})]] uv: vec2<f32>, /* wgsl */ `
+              : ''
+          }
+          ${
+            hasTangent
+              ? `
+          [[location(${(location += 1)})]] tangent: vec3<f32>,
+          [[location(${(location += 1)})]] bitangent: vec3<f32>, /* wgsl */ `
+              : ''
+          }) -> [[location(0)]] vec4<f32>
   {
       let lightPos = vec3<f32>(200.0, 400.0, 300.0);
 
@@ -149,8 +157,7 @@ export default function frag(
       if (color.a < ${toFloat(alphaCutoff)})
       {
         discard;
-      }
-      /* wgsl */ `
+      } /* wgsl */ `
           : ''
       }
 
@@ -161,8 +168,7 @@ export default function frag(
           ? `
       let metalRough = textureSample(metalRoughTex, metalRoughSampler, uv);
       metallic = metallic * metalRough.b;
-      roughness = roughness * metalRough.g;
-      /* wgsl */ `
+      roughness = roughness * metalRough.g; /* wgsl */ `
           : ''
       }
       roughness = clamp(roughness, 0.04, 1.0);
@@ -176,19 +182,16 @@ export default function frag(
       var normal = textureSample(normalTex, normalSampler, uv).rgb;
       normal = normal * 2.0 - 1.0;
       normal = normal.x * tangent + normal.y * bitangent + normal.z * vNormal;
-      normal = normalize(normal);
-      /* wgsl */ `
+      normal = normalize(normal); /* wgsl */ `
           : `
-      var normal = normalize(vNormal);
-      /* wgsl */ `
+      var normal = normalize(vNormal); /* wgsl */ `
       }
       ${
         material.doubleSided
           ? `
       if (dot(normal, viewDir) < 0.0) {
         normal = -normal;
-      }
-      /* wgsl */ `
+      } /* wgsl */ `
           : ''
       }
 
