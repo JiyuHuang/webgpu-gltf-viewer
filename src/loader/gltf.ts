@@ -96,7 +96,7 @@ export async function loadGLTF(url: string) {
       loadBuffer(`${dir}/${buffer.uri}`)
     ) as Array<Promise<ArrayBuffer>>
   ).then((buffers) => {
-    meshes = loadMeshes(json, buffers[0]);
+    meshes = loadMeshes(json, buffers);
   });
 
   const images: Array<ImageBitmap> = [];

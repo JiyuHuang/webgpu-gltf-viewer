@@ -30,7 +30,7 @@ export default class Camera {
   constructor(canvas: HTMLCanvasElement, device: GPUDevice, camera?: any) {
     const aspect = canvas.clientWidth / canvas.clientHeight;
     if (!camera) {
-      mat4.perspective(this.proj, this.yfov, aspect, 0.001, Infinity);
+      mat4.perspective(this.proj, this.yfov, aspect, 0.01, Infinity);
       this.update();
 
       let mousePressed = false;

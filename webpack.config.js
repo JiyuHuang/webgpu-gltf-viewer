@@ -2,7 +2,7 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = (env, argv) => {
-  const isProduction = argv.mode && argv.mode == 'production';
+  const isProduction = argv.mode === 'production';
   return {
     mode: isProduction ? 'production' : 'development',
     entry: './src/index.ts',
@@ -12,7 +12,7 @@ module.exports = (env, argv) => {
         template: 'src/index.html',
       }),
     ],
-    devtool: 'inline-source-map',
+    devtool: isProduction ? undefined : 'inline-source-map',
     devServer: {
       static: {
         directory: path.join(__dirname, 'public'),

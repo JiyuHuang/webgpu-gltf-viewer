@@ -25,7 +25,7 @@ export class GLTFPrimitive {
 
   material: any;
 
-  constructor(json: any, primitive: any, buffer: ArrayBuffer) {
+  constructor(json: any, primitive: any, buffers: Array<ArrayBuffer>) {
     if (json.materials && primitive.material !== undefined) {
       this.material = json.materials[primitive.material];
     } else {
@@ -44,7 +44,7 @@ export class GLTFPrimitive {
 
       const array = newTypedArray(
         accessor.componentType,
-        buffer,
+        buffers[bufferView.buffer],
         offset,
         accessor.count * stride
       );
@@ -108,10 +108,10 @@ export class GLTFPrimitive {
 
 export type GLTFMesh = Array<GLTFPrimitive>;
 
-export function loadMeshes(json: any, buffer: ArrayBuffer) {
+export function loadMeshes(json: any, buffers: Array<ArrayBuffer>) {
   return json.meshes.map((mesh: any) =>
     mesh.primitives.map(
-      (primitive: any) => new GLTFPrimitive(json, primitive, buffer)
+      (primitive: any) => new GLTFPrimitive(json, primitive, buffers)
     )
   );
 }
