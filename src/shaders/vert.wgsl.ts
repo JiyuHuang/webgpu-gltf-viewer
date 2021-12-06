@@ -31,7 +31,7 @@ export default function vert(primitive: Primitive, instanceCount: number) {
 
   struct VertexOutput
   {
-      [[builtin(position)]] Position: vec4<f32>;
+      [[builtin(position)]] position: vec4<f32>;
       [[location(0)]] normal: vec3<f32>;
       [[location(1)]] worldPos: vec3<f32>;
       ${
@@ -84,7 +84,7 @@ export default function vert(primitive: Primitive, instanceCount: number) {
   {
       let model = models.model[instanceIndex];
       var v: VertexOutput;
-      v.Position = camera.projView * model.matrix * vec4<f32>(pos, 1.0);
+      v.position = camera.projView * model.matrix * vec4<f32>(pos, 1.0);
       v.normal = normalize((model.invTr * vec4<f32>(normal, 0.0)).xyz);
       v.worldPos = (model.matrix * vec4<f32>(pos, 1.0)).xyz;
       ${hasUV ? 'v.uv = uv;' : ''}

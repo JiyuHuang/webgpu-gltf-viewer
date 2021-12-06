@@ -1,3 +1,4 @@
+import { gltfEnum } from '../util';
 import { GLTFMesh, loadMeshes } from './mesh';
 
 function loadJson(url: string) {
@@ -43,13 +44,19 @@ export class GLTF {
 
   nodes: Array<any>;
 
-  cameras?: Array<any>;
+  cameras: Array<any> | undefined;
 
   meshes: Array<GLTFMesh>;
 
-  images: Array<ImageBitmap>;
-
-  textures: Array<any>;
+  textures: Array<{
+    source: ImageBitmap;
+    sampler: {
+      magFilter: GPUFilterMode;
+      minFilter: GPUFilterMode;
+      addressModeU: GPUAddressMode;
+      addressModeV: GPUAddressMode;
+    };
+  }>;
 
   constructor(json: any, meshes: Array<GLTFMesh>, images: Array<ImageBitmap>) {
     this.scenes = json.scenes;
@@ -57,8 +64,25 @@ export class GLTF {
     this.nodes = json.nodes;
     this.cameras = json.cameras;
     this.meshes = meshes;
-    this.images = images;
-    this.textures = json.textures;
+    this.textures = json.textures
+      ? (json.textures as Array<any>).map((texture: any) => {
+          let sampler;
+          if (texture.sampler !== undefined) {
+            sampler = json.samplers[texture.sampler];
+          } else {
+            sampler = {};
+          }
+          return {
+            source: images[texture.source],
+            sampler: {
+              magFilter: gltfEnum[sampler.magFilter || 9729] as GPUFilterMode,
+              minFilter: gltfEnum[sampler.minFilter || 9729] as GPUFilterMode,
+              addressModeU: gltfEnum[sampler.wrapS || 10497] as GPUAddressMode,
+              addressModeV: gltfEnum[sampler.wrapT || 10497] as GPUAddressMode,
+            },
+          };
+        })
+      : [];
   }
 }
 

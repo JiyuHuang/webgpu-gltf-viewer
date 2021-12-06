@@ -3,6 +3,7 @@ import { GLTF } from '../loader/gltf';
 import createPipeline from './pipeline';
 import Primitive from './primitive';
 import { joinArray, createGPUBuffer } from '../util';
+import Camera from './camera';
 
 export default class Scene {
   meshes: {
@@ -15,43 +16,18 @@ export default class Scene {
 
   textures: { [key: number]: GPUTexture } = {};
 
-  camera: {
-    projViewBuffer: GPUBuffer;
-    eyeBuffer: GPUBuffer;
-    bindGroup: GPUBindGroup;
-  };
+  camera: Camera;
+
+  cameras: Array<{ world: mat4; json: any }> = [];
 
   constructor(
     gltf: GLTF,
     sceneIndex: number,
+    canvas: HTMLCanvasElement,
     device: GPUDevice,
     contextFormat: GPUTextureFormat
   ) {
-    const cameraBindGroupLayout = device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {} },
-        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: {} },
-      ],
-    });
-    const projViewBuffer = device.createBuffer({
-      size: 4 * 4 * 4,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
-    });
-    const eyeBuffer = device.createBuffer({
-      size: 4 * 3,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
-    });
-    this.camera = {
-      projViewBuffer,
-      eyeBuffer,
-      bindGroup: device.createBindGroup({
-        layout: cameraBindGroupLayout,
-        entries: [
-          { binding: 0, resource: { buffer: projViewBuffer } },
-          { binding: 1, resource: { buffer: eyeBuffer } },
-        ],
-      }),
-    };
+    this.camera = new Camera(canvas, device);
 
     const createResource = (node: any, parentMatrix = mat4.create()) => {
       const matrix = mat4.clone(parentMatrix);
@@ -89,6 +65,10 @@ export default class Scene {
         }
       }
 
+      if (node.camera !== undefined) {
+        this.cameras.push({ world: matrix, json: gltf.cameras![node.camera] });
+      }
+
       node.children?.forEach((childIndex: any) =>
         createResource(gltf.nodes[childIndex], matrix)
       );
@@ -122,8 +102,7 @@ export default class Scene {
 
         textures.forEach((texture) => {
           if (texture && !this.textures[texture.index]) {
-            const imageIndex = gltf.textures[texture.index].source;
-            const { width, height } = gltf.images[imageIndex];
+            const { width, height } = gltf.textures[texture.index].source;
             this.textures[texture.index] = device.createTexture({
               size: [width, height, 1],
               format: 'rgba8unorm',
@@ -133,7 +112,7 @@ export default class Scene {
                 GPUTextureUsage.RENDER_ATTACHMENT,
             });
             device.queue.copyExternalImageToTexture(
-              { source: gltf.images[imageIndex] },
+              { source: gltf.textures[texture.index].source },
               { texture: this.textures[texture.index] },
               [width, height]
             );
@@ -145,8 +124,7 @@ export default class Scene {
           contextFormat,
           material,
           primitive,
-          mesh.matrices.length / 2,
-          cameraBindGroupLayout
+          mesh.matrices.length / 2
         );
 
         const bindGroupEntries: [GPUBindGroupEntry] = [
@@ -154,13 +132,15 @@ export default class Scene {
         ];
         textures.forEach((texture, n) => {
           if (texture) {
+            const { addressModeU, addressModeV, magFilter, minFilter } =
+              gltf.textures[texture.index].sampler;
             bindGroupEntries.push({
               binding: n * 2 + 1,
               resource: device.createSampler({
-                addressModeU: 'repeat',
-                addressModeV: 'repeat',
-                magFilter: 'linear',
-                minFilter: 'linear',
+                addressModeU,
+                addressModeV,
+                magFilter,
+                minFilter,
               }),
             });
             bindGroupEntries.push({
@@ -178,6 +158,7 @@ export default class Scene {
   }
 
   destroy() {
+    this.camera.destroy();
     Object.entries(this.meshes).forEach(([, mesh]) => {
       mesh.matrixBuffer!.destroy();
       mesh.primitives.forEach((primitive) => {

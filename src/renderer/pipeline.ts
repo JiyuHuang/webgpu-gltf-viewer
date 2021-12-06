@@ -7,8 +7,7 @@ export default function createPipeline(
   format: GPUTextureFormat,
   material: any,
   primitive: Primitive,
-  instanceCount: number,
-  cameraBindGroupLayout: GPUBindGroupLayout
+  instanceCount: number
 ) {
   const { baseColorTexture, metallicRoughnessTexture } =
     material.pbrMetallicRoughness;
@@ -77,7 +76,12 @@ export default function createPipeline(
   return device.createRenderPipeline({
     layout: device.createPipelineLayout({
       bindGroupLayouts: [
-        cameraBindGroupLayout,
+        device.createBindGroupLayout({
+          entries: [
+            { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {} },
+            { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: {} },
+          ],
+        }),
         device.createBindGroupLayout({
           entries: bindGroupLayoutEntries,
         }),

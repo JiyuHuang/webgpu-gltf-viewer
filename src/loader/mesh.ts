@@ -29,7 +29,10 @@ export class GLTFPrimitive {
     if (json.materials && primitive.material !== undefined) {
       this.material = json.materials[primitive.material];
     } else {
-      this.material = { pbrMetallicRoughness: {} };
+      this.material = {};
+    }
+    if (!this.material.pbrMetallicRoughness) {
+      this.material.pbrMetallicRoughness = {};
     }
 
     function getArray(idx: number, n: number) {

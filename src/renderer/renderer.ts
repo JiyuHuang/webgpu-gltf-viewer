@@ -17,8 +17,6 @@ export class Renderer {
 
   scene?: Scene;
 
-  camera: Camera;
-
   constructor(
     canvas: HTMLCanvasElement,
     device: GPUDevice,
@@ -64,8 +62,6 @@ export class Renderer {
       this.renderPassDesc.depthStencilAttachment!.view =
         depthTexture.createView();
     });
-
-    this.camera = new Camera(canvas);
   }
 
   render() {
@@ -80,23 +76,7 @@ export class Renderer {
       ];
       const passEncoder = commandEncoder.beginRenderPass(this.renderPassDesc);
 
-      const projView = this.camera.projView as Float32Array;
-      this.device.queue.writeBuffer(
-        this.scene!.camera.projViewBuffer,
-        0,
-        projView.buffer,
-        projView.byteOffset,
-        projView.byteLength
-      );
-      const eye = this.camera.eye as Float32Array;
-      this.device.queue.writeBuffer(
-        this.scene!.camera.eyeBuffer,
-        0,
-        eye.buffer,
-        eye.byteOffset,
-        eye.byteLength
-      );
-      passEncoder.setBindGroup(0, this.scene!.camera.bindGroup);
+      this.scene!.camera.bind(this.device, passEncoder);
 
       Object.entries(this.scene!.meshes).forEach(([, mesh]) => {
         mesh.primitives.forEach((primitive) => {
@@ -124,15 +104,28 @@ export class Renderer {
   async load(url: string) {
     this.gltf = await loadGLTF(url);
     this.scene?.destroy();
-    if (this.gltf.scene !== undefined) {
-      this.scene = new Scene(
-        this.gltf,
-        this.gltf.scene,
+    this.scene = new Scene(
+      this.gltf,
+      this.gltf.scene || 0,
+      this.canvas,
+      this.device,
+      this.contextFormat
+    );
+    this.render();
+  }
+
+  getCameraCount() {
+    return this.scene ? this.scene.cameras.length : 0;
+  }
+
+  setCamera(index?: number) {
+    this.scene?.camera.destroy();
+    if (this.scene) {
+      this.scene.camera = new Camera(
+        this.canvas,
         this.device,
-        this.contextFormat
+        index !== undefined ? this.scene.cameras[index] : undefined
       );
-      this.camera.reset();
-      this.render();
     }
   }
 }

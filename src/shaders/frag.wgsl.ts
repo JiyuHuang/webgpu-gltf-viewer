@@ -18,8 +18,6 @@ export default function frag(primitive: Primitive, material: any) {
   baseColorFactor = baseColorFactor || [1, 1, 1, 1];
   let { emissiveFactor } = material;
   emissiveFactor = emissiveFactor || [0, 0, 0];
-  let { alphaCutoff } = material;
-  alphaCutoff = alphaCutoff !== undefined ? alphaCutoff : 0.5;
 
   const colorUV = baseColorTexture?.texCoord || '';
   const pbrUV = metallicRoughnessTexture?.texCoord || '';
@@ -165,7 +163,7 @@ export default function frag(primitive: Primitive, material: any) {
 
       ${
         material.alphaMode === 'MASK'
-          ? `if (color.a < ${toFloat(alphaCutoff)})
+          ? `if (color.a < ${toFloat(material.alphaCutoff, 0.5)})
              {
                discard;
              } /* wgsl */`
@@ -187,9 +185,11 @@ export default function frag(primitive: Primitive, material: any) {
       let viewDir = normalize(camera.eye - worldPos);
 
       ${
-        normalTexture && hasTangent
+        normalTexture
           ? `var normal = textureSample(normalTex, normalSampler, uv${normalUV}).rgb;
              normal = normal * 2.0 - 1.0;
+             normal.x = normal.x * ${toFloat(normalTexture.scale)};
+             normal.y = normal.y * ${toFloat(normalTexture.scale)};
              normal = normal.x * tangent + normal.y * bitangent + normal.z * vNormal;
              normal = normalize(normal); /* wgsl */`
           : `var normal = normalize(vNormal); /* wgsl */`
@@ -205,7 +205,9 @@ export default function frag(primitive: Primitive, material: any) {
 
       ${
         occlusionTexture
-          ? `let ao = textureSample(occlusionTex, occlusionSampler, uv${aoUV}).r; /* wgsl */`
+          ? `var ao = textureSample(occlusionTex, occlusionSampler, uv${aoUV}).r;
+             ao = 1.0 + ${toFloat(occlusionTexture.strength)} * (ao - 1.0);
+             /* wgsl */`
           : 'let ao = 1.0;'
       }
       var emissive = vec3<f32>(${toFloat(emissiveFactor[0])},

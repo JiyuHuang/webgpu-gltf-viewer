@@ -28,22 +28,16 @@ export function newTypedArray(
 ) {
   switch (type) {
     case 5120:
-    case 'BYTE':
       return new Int8Array(buffer, byteOffset, length);
     case 5121:
-    case 'UNSIGNED_BYTE':
       return new Uint8Array(buffer, byteOffset, length);
     case 5122:
-    case 'SHORT':
       return new Int16Array(buffer, byteOffset, length);
     case 5123:
-    case 'UNSIGNED_SHORT':
       return new Uint16Array(buffer, byteOffset, length);
     case 5125:
-    case 'UNSIGNED_INT':
       return new Uint32Array(buffer, byteOffset, length);
     case 5126:
-    case 'FLOAT':
       return new Float32Array(buffer, byteOffset, length);
     default:
       throw new Error('invalid component type');
@@ -208,3 +202,15 @@ export function generateTangents(
   }
   return tangents;
 }
+
+export const gltfEnum: { [key: number]: GPUAddressMode | GPUFilterMode } = {
+  9728: 'nearest',
+  9729: 'linear',
+  9984: 'linear',
+  9985: 'linear',
+  9986: 'linear',
+  9987: 'linear',
+  33071: 'clamp-to-edge',
+  33648: 'mirror-repeat',
+  10497: 'repeat',
+};

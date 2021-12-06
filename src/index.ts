@@ -1,23 +1,41 @@
-import { Renderer, createRenderer } from './renderer/renderer';
+import { createRenderer } from './renderer/renderer';
 
 const canvas = document.getElementById('webgpu-canvas') as HTMLCanvasElement;
-const select = document.getElementById('model-select') as HTMLSelectElement;
-let renderer: Renderer;
-select.onchange = () => renderer.load(select.value);
+const models = document.getElementById('model-select') as HTMLSelectElement;
+const cameras = document.getElementById('camera-select') as HTMLSelectElement;
+const userCamera = document.createElement('option');
+userCamera.innerHTML = 'User Camera';
+userCamera.value = 'User Camera';
 fetch(
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/model-index.json'
 )
   .then((response) => response.json())
-  .then((modelIndex) => {
-    modelIndex.forEach(async (model: any) => {
+  .then((modelList) => {
+    modelList.forEach(async (model: any) => {
       const option = document.createElement('option');
       option.innerHTML = model.name;
       option.value = `https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/${model.name}/glTF/${model.name}.gltf`;
-      select.add(option);
+      models.add(option);
       if (model.name === 'DamagedHelmet') {
-        select.value = option.value;
-        renderer = await createRenderer(canvas);
-        renderer.load(select.value);
+        models.value = option.value;
+        const renderer = await createRenderer(canvas);
+        const loadScene = async () => {
+          await renderer.load(models.value);
+          cameras.innerHTML = '';
+          cameras.add(userCamera);
+          for (let i = 0; i < renderer.getCameraCount(); i += 1) {
+            const camera = document.createElement('option');
+            camera.innerHTML = String(i);
+            camera.value = String(i);
+            cameras.add(camera);
+          }
+        };
+        loadScene();
+        models.onchange = () => loadScene();
+        cameras.onchange = () =>
+          renderer.setCamera(
+            cameras.value !== 'User Camera' ? Number(cameras.value) : undefined
+          );
       }
     });
   });

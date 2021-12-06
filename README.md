@@ -13,10 +13,15 @@ https://cis565-team6.github.io/webgpu-gltf-viewer/
 - [x] Accessors
   - [ ] Sparse Accessors
 - [x] Buffers and Buffer Views
+- [x] Cameras
 - [x] Images
-- [x] Meshes
-- [x] Nodes
-- [x] Scenes
+  - [ ] Images stored in buffer views
 - [x] Materials
+- [x] Meshes
+  - Topology types: triangles only
+- [x] Nodes
+- [x] Samplers
+- [x] Scenes
+- [x] Textures
 - [ ] Animations
 - [ ] Skins
