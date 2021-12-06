@@ -109,12 +109,20 @@ export function createGPUBuffer(
   return buffer;
 }
 
-export function generateNormals(indices: TypedArray, positions: TypedArray) {
+export function generateNormals(
+  indices: TypedArray | undefined,
+  positions: TypedArray
+) {
   const normals = new Float32Array(positions.length);
-  for (let i = 0; i < indices.length; i += 3) {
+  const vertexCount = indices ? indices.length : positions.length;
+  for (let i = 0; i < vertexCount; i += 3) {
     const triIndices = [];
     for (let n = 0; n < 3; n += 1) {
-      triIndices.push(indices[i + n]);
+      if (indices) {
+        triIndices.push(indices[i + n]);
+      } else {
+        triIndices.push(i + n);
+      }
     }
     const triangle = triIndices.map((vertexIndex) => {
       const index = vertexIndex * 3;
@@ -143,16 +151,21 @@ export function generateNormals(indices: TypedArray, positions: TypedArray) {
 }
 
 export function generateTangents(
-  indices: TypedArray,
+  indices: TypedArray | undefined,
   positions: TypedArray,
   normals: TypedArray,
   uvs: TypedArray
 ) {
   const tangents = new Float32Array((normals.length / 3) * 4);
-  for (let i = 0; i < indices.length; i += 3) {
+  const vertexCount = indices ? indices.length : positions.length;
+  for (let i = 0; i < vertexCount; i += 3) {
     const triIndices = [];
     for (let n = 0; n < 3; n += 1) {
-      triIndices.push(indices[i + n]);
+      if (indices) {
+        triIndices.push(indices[i + n]);
+      } else {
+        triIndices.push(i + n);
+      }
     }
     const pos = triIndices.map((vertexIndex) => {
       const index = vertexIndex * 3;

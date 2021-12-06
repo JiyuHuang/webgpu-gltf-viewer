@@ -7,15 +7,17 @@ import {
 } from '../util';
 
 export class GLTFPrimitive {
-  indexCount: number;
+  vertexCount: number;
 
-  indices: Uint16Array | Uint32Array;
+  indices?: Uint16Array | Uint32Array;
 
   positions: TypedArray;
 
   normals: TypedArray;
 
   uvs?: TypedArray;
+
+  uv1s?: TypedArray;
 
   tangents?: TypedArray;
 
@@ -59,8 +61,12 @@ export class GLTFPrimitive {
       return array;
     }
 
-    this.indices = toIndexArray(getArray(primitive.indices, 1));
-    this.indexCount = json.accessors[primitive.indices].count;
+    if (primitive.indices !== undefined) {
+      this.indices = toIndexArray(getArray(primitive.indices, 1));
+      this.vertexCount = json.accessors[primitive.indices].count;
+    } else {
+      this.vertexCount = json.accessors[primitive.attributes.POSITION].count;
+    }
 
     this.positions = getArray(primitive.attributes.POSITION, 3);
 
@@ -72,6 +78,9 @@ export class GLTFPrimitive {
 
     if (primitive.attributes.TEXCOORD_0 !== undefined) {
       this.uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
+    }
+    if (primitive.attributes.TEXCOORD_1 !== undefined) {
+      this.uv1s = getArray(primitive.attributes.TEXCOORD_1, 2);
     }
 
     if (

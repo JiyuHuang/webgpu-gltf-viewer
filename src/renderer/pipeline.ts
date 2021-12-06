@@ -10,10 +10,6 @@ export default function createPipeline(
   instanceCount: number,
   cameraBindGroupLayout: GPUBindGroupLayout
 ) {
-  const hasUV = primitive.uvs !== null;
-  const hasTangent = primitive.tangents !== null;
-  const hasVertexColor = primitive.colors !== null;
-
   const { baseColorTexture, metallicRoughnessTexture } =
     material.pbrMetallicRoughness;
   const { normalTexture, occlusionTexture, emissiveTexture } = material;
@@ -43,13 +39,16 @@ export default function createPipeline(
     getVertexBufferLayout(3),
     getVertexBufferLayout(3),
   ];
-  if (hasUV) {
+  if (primitive.uvs !== null) {
     vertexBufferLayout.push(getVertexBufferLayout(2));
   }
-  if (hasTangent) {
+  if (primitive.uv1s !== null) {
+    vertexBufferLayout.push(getVertexBufferLayout(2));
+  }
+  if (primitive.tangents !== null) {
     vertexBufferLayout.push(getVertexBufferLayout(4));
   }
-  if (hasVertexColor) {
+  if (primitive.colors !== null) {
     vertexBufferLayout.push(getVertexBufferLayout(4));
   }
 
@@ -86,14 +85,14 @@ export default function createPipeline(
     }),
     vertex: {
       module: device.createShaderModule({
-        code: vert(instanceCount, hasUV, hasTangent, hasVertexColor),
+        code: vert(primitive, instanceCount),
       }),
       entryPoint: 'main',
       buffers: vertexBufferLayout,
     },
     fragment: {
       module: device.createShaderModule({
-        code: frag(material, hasUV, hasTangent, hasVertexColor),
+        code: frag(primitive, material),
       }),
       entryPoint: 'main',
       targets: [
@@ -108,14 +107,7 @@ export default function createPipeline(
                     srcFactor: 'src-alpha',
                     dstFactor: 'one-minus-src-alpha',
                   },
-            alpha:
-              material.alphaMode !== 'BLEND'
-                ? { operation: 'add', srcFactor: 'zero', dstFactor: 'one' }
-                : {
-                    operation: 'add',
-                    srcFactor: 'src-alpha',
-                    dstFactor: 'one-minus-src-alpha',
-                  },
+            alpha: { operation: 'add', srcFactor: 'zero', dstFactor: 'one' },
           },
         },
       ],

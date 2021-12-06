@@ -24,7 +24,7 @@ export default class Camera {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const aspect = canvas.clientWidth / canvas.clientHeight;
-    mat4.perspective(this.proj, Math.PI / 3, aspect, 0.01, Infinity);
+    mat4.perspective(this.proj, Math.PI / 3, aspect, 0.001, Infinity);
     this.update();
 
     window.addEventListener('resize', () => {

@@ -1,25 +1,31 @@
+import Primitive from '../renderer/primitive';
 import { toFloat } from '../util';
 
-export default function frag(
-  material: any,
-  hasUV: boolean,
-  hasTangent: boolean,
-  hasVertexColor: boolean
-) {
+export default function frag(primitive: Primitive, material: any) {
+  const hasUV = primitive.uvs !== null;
+  const hasUV1 = primitive.uv1s !== null;
+  const hasTangent = primitive.tangents !== null;
+  const hasVertexColor = primitive.colors !== null;
+
   const {
     baseColorTexture,
     metallicRoughnessTexture,
     metallicFactor,
     roughnessFactor,
   } = material.pbrMetallicRoughness;
+  const { normalTexture, occlusionTexture, emissiveTexture } = material;
   let { baseColorFactor } = material.pbrMetallicRoughness;
   baseColorFactor = baseColorFactor || [1, 1, 1, 1];
-  const { normalTexture, occlusionTexture, emissiveTexture } = material;
   let { emissiveFactor } = material;
   emissiveFactor = emissiveFactor || [0, 0, 0];
-
   let { alphaCutoff } = material;
   alphaCutoff = alphaCutoff !== undefined ? alphaCutoff : 0.5;
+
+  const colorUV = baseColorTexture?.texCoord || '';
+  const pbrUV = metallicRoughnessTexture?.texCoord || '';
+  const normalUV = normalTexture?.texCoord || '';
+  const aoUV = occlusionTexture?.texCoord || '';
+  const emissiveUV = emissiveTexture?.texCoord || '';
 
   let location = 1;
 
@@ -35,37 +41,32 @@ export default function frag(
 
   ${
     baseColorTexture
-      ? `
-  [[group(1), binding(1)]] var texSampler: sampler;
-  [[group(1), binding(2)]] var tex: texture_2d<f32>; /* wgsl */ `
+      ? `[[group(1), binding(1)]] var texSampler: sampler;
+         [[group(1), binding(2)]] var tex: texture_2d<f32>; /* wgsl */`
       : ''
   }
   ${
     metallicRoughnessTexture
-      ? `
-  [[group(1), binding(3)]] var metalRoughSampler: sampler;
-  [[group(1), binding(4)]] var metalRoughTex: texture_2d<f32>; /* wgsl */ `
+      ? `[[group(1), binding(3)]] var metalRoughSampler: sampler;
+         [[group(1), binding(4)]] var metalRoughTex: texture_2d<f32>; /* wgsl */`
       : ''
   }
   ${
     normalTexture
-      ? `
-  [[group(1), binding(5)]] var normalSampler: sampler;
-  [[group(1), binding(6)]] var normalTex: texture_2d<f32>; /* wgsl */ `
+      ? `[[group(1), binding(5)]] var normalSampler: sampler;
+         [[group(1), binding(6)]] var normalTex: texture_2d<f32>; /* wgsl */`
       : ''
   }
   ${
     occlusionTexture
-      ? `
-  [[group(1), binding(7)]] var occlusionSampler: sampler;
-  [[group(1), binding(8)]] var occlusionTex: texture_2d<f32>; /* wgsl */ `
+      ? `[[group(1), binding(7)]] var occlusionSampler: sampler;
+         [[group(1), binding(8)]] var occlusionTex: texture_2d<f32>; /* wgsl */`
       : ''
   }
   ${
     emissiveTexture
-      ? `
-  [[group(1), binding(9)]] var emissiveSampler: sampler;
-  [[group(1), binding(10)]] var emissiveTex: texture_2d<f32>; /* wgsl */ `
+      ? `[[group(1), binding(9)]] var emissiveSampler: sampler;
+         [[group(1), binding(10)]] var emissiveTex: texture_2d<f32>; /* wgsl */`
       : ''
   }
 
@@ -129,21 +130,23 @@ export default function frag(
           [[location(1)]] worldPos: vec3<f32>,
           ${
             hasUV
-              ? `
-          [[location(${(location += 1)})]] uv: vec2<f32>, /* wgsl */ `
+              ? `[[location(${(location += 1)})]] uv: vec2<f32>, /* wgsl */`
+              : ''
+          }
+          ${
+            hasUV1
+              ? `[[location(${(location += 1)})]] uv1: vec2<f32>, /* wgsl */`
               : ''
           }
           ${
             hasTangent
-              ? `
-          [[location(${(location += 1)})]] tangent: vec3<f32>,
-          [[location(${(location += 1)})]] bitangent: vec3<f32>, /* wgsl */ `
+              ? `[[location(${(location += 1)})]] tangent: vec3<f32>,
+                 [[location(${(location += 1)})]] bitangent: vec3<f32>, /* wgsl */`
               : ''
           }
           ${
             hasVertexColor
-              ? `
-          [[location(${(location += 1)})]] vColor: vec4<f32>, /* wgsl */ `
+              ? `[[location(${(location += 1)})]] vColor: vec4<f32>, /* wgsl */`
               : ''
           }) -> [[location(0)]] vec4<f32>
   {
@@ -155,18 +158,17 @@ export default function frag(
                             ${toFloat(baseColorFactor[3])});
       ${
         baseColorTexture
-          ? 'color = color * textureSample(tex, texSampler, uv);'
+          ? `color = color * textureSample(tex, texSampler, uv${colorUV}); /* wgsl */`
           : ''
       }
       ${hasVertexColor ? 'color = color * vColor;' : ''}
 
       ${
         material.alphaMode === 'MASK'
-          ? `
-      if (color.a < ${toFloat(alphaCutoff)})
-      {
-        discard;
-      } /* wgsl */ `
+          ? `if (color.a < ${toFloat(alphaCutoff)})
+             {
+               discard;
+             } /* wgsl */`
           : ''
       }
 
@@ -174,10 +176,9 @@ export default function frag(
       var roughness: f32 = ${toFloat(roughnessFactor)};
       ${
         metallicRoughnessTexture
-          ? `
-      let metalRough = textureSample(metalRoughTex, metalRoughSampler, uv);
-      metallic = metallic * metalRough.b;
-      roughness = roughness * metalRough.g; /* wgsl */ `
+          ? `let metalRough = textureSample(metalRoughTex, metalRoughSampler, uv${pbrUV});
+             metallic = metallic * metalRough.b;
+             roughness = roughness * metalRough.g; /* wgsl */`
           : ''
       }
       roughness = clamp(roughness, 0.04, 1.0);
@@ -187,26 +188,24 @@ export default function frag(
 
       ${
         normalTexture && hasTangent
-          ? `
-      var normal = textureSample(normalTex, normalSampler, uv).rgb;
-      normal = normal * 2.0 - 1.0;
-      normal = normal.x * tangent + normal.y * bitangent + normal.z * vNormal;
-      normal = normalize(normal); /* wgsl */ `
-          : `
-      var normal = normalize(vNormal); /* wgsl */ `
+          ? `var normal = textureSample(normalTex, normalSampler, uv${normalUV}).rgb;
+             normal = normal * 2.0 - 1.0;
+             normal = normal.x * tangent + normal.y * bitangent + normal.z * vNormal;
+             normal = normalize(normal); /* wgsl */`
+          : `var normal = normalize(vNormal); /* wgsl */`
       }
       ${
         material.doubleSided
-          ? `
-      if (dot(normal, viewDir) < 0.0) {
-        normal = -normal;
-      } /* wgsl */ `
+          ? `if (dot(normal, viewDir) < 0.0)
+             {
+               normal = -normal;
+             } /* wgsl */`
           : ''
       }
 
       ${
         occlusionTexture
-          ? 'let ao = textureSample(occlusionTex, occlusionSampler, uv).r;'
+          ? `let ao = textureSample(occlusionTex, occlusionSampler, uv${aoUV}).r; /* wgsl */`
           : 'let ao = 1.0;'
       }
       var emissive = vec3<f32>(${toFloat(emissiveFactor[0])},
@@ -214,11 +213,10 @@ export default function frag(
                                ${toFloat(emissiveFactor[2])});
       ${
         emissiveTexture
-          ? 'emissive = emissive * textureSample(emissiveTex, emissiveSampler, uv).rgb;'
+          ? `emissive = emissive * textureSample(emissiveTex, emissiveSampler, uv${emissiveUV}).rgb; /* wgsl */`
           : ''
       }
 
       return vec4<f32>(brdf(color.rgb, metallic, roughness, lightDir, viewDir, normal) * ao + emissive, color.a);
-  }
-  `;
+  }`;
 }
