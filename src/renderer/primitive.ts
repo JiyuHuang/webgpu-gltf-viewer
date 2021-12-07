@@ -1,4 +1,3 @@
-import { GLTFPrimitive } from '../loader/mesh';
 import { createGPUBuffer } from '../util';
 
 export default class Primitive {
@@ -26,7 +25,7 @@ export default class Primitive {
 
   uniformBindGroup: GPUBindGroup | undefined;
 
-  constructor(primitive: GLTFPrimitive, device: GPUDevice) {
+  constructor(primitive: any, device: GPUDevice) {
     this.vertexCount = primitive.vertexCount;
     this.indexFormat =
       primitive.indices instanceof Uint16Array ? 'uint16' : 'uint32';

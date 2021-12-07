@@ -12,6 +12,42 @@ export function toFloat(num: number | undefined, defaultValue = 1) {
   return n;
 }
 
+export function loadJson(url: string) {
+  return new Promise<any>((resolve) => {
+    const xobj = new XMLHttpRequest();
+    xobj.overrideMimeType('application/json');
+    xobj.open('GET', url);
+    xobj.onreadystatechange = () => {
+      if (xobj.readyState === 4 && xobj.status === 200) {
+        resolve(JSON.parse(xobj.responseText));
+      }
+    };
+    xobj.send(null);
+  });
+}
+
+export function loadBuffer(url: string) {
+  return new Promise<ArrayBuffer>((resolve) => {
+    const xobj = new XMLHttpRequest();
+    xobj.responseType = 'arraybuffer';
+    xobj.open('GET', url);
+    xobj.onreadystatechange = () => {
+      if (xobj.readyState === 4 && xobj.status === 200) {
+        resolve(xobj.response);
+      }
+    };
+    xobj.send(null);
+  });
+}
+
+export async function loadImage(url: string) {
+  const image = new Image();
+  image.crossOrigin = 'Anonymous';
+  image.src = url;
+  await image.decode();
+  return createImageBitmap(image);
+}
+
 export type TypedArray =
   | Int8Array
   | Uint8Array
@@ -104,7 +140,7 @@ export function createGPUBuffer(
 }
 
 export function generateNormals(
-  indices: TypedArray | undefined,
+  indices: TypedArray | null,
   positions: TypedArray
 ) {
   const normals = new Float32Array(positions.length);
@@ -145,7 +181,7 @@ export function generateNormals(
 }
 
 export function generateTangents(
-  indices: TypedArray | undefined,
+  indices: TypedArray | null,
   positions: TypedArray,
   normals: TypedArray,
   uvs: TypedArray
@@ -203,7 +239,7 @@ export function generateTangents(
   return tangents;
 }
 
-export const gltfEnum: { [key: number]: GPUAddressMode | GPUFilterMode } = {
+export const gltfEnum: { [key: number]: string } = {
   9728: 'nearest',
   9729: 'linear',
   9984: 'linear',

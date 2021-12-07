@@ -106,7 +106,7 @@ export class Renderer {
     this.scene?.destroy();
     this.scene = new Scene(
       this.gltf,
-      this.gltf.scene || 0,
+      this.gltf.defaultScene,
       this.canvas,
       this.device,
       this.contextFormat
