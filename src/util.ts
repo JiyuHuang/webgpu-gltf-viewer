@@ -45,7 +45,7 @@ export async function loadImage(url: string) {
   image.crossOrigin = 'Anonymous';
   image.src = url;
   await image.decode();
-  return createImageBitmap(image);
+  return createImageBitmap(image, { colorSpaceConversion: 'none' });
 }
 
 export type TypedArray =

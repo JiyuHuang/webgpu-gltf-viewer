@@ -68,6 +68,11 @@ export default function frag(primitive: Primitive, material: any) {
       : ''
   }
 
+  fn linearSample(texture: texture_2d<f32>, texSampler: sampler, uv: vec2<f32>) -> vec4<f32>
+  {
+    return pow(textureSample(texture, texSampler, uv), vec4<f32>(2.2));
+  }
+
   let pi: f32 = 3.141592653589793;
 
   fn blinnPhong(color: vec3<f32>,
@@ -118,9 +123,7 @@ export default function frag(primitive: Primitive, material: any) {
 
       let diffuse = (1.0 - f) / pi * diffuseColor;
       let specular = max(f * g * d / (4.0 * ndotl * ndotv), vec3<f32>(0.0));
-      let intensity = 2.5;
-      let ambient = 0.4;
-      return ndotl * (diffuse + specular) * intensity + color * ambient;
+      return ndotl * (diffuse + specular) * 2.0 + color * 0.2;
   }
 
   [[stage(fragment)]]
@@ -148,7 +151,7 @@ export default function frag(primitive: Primitive, material: any) {
               : ''
           }) -> [[location(0)]] vec4<f32>
   {
-      let lightPos = vec3<f32>(200.0, 400.0, 300.0);
+      let lightDir = normalize(vec3<f32>(2.0, 4.0, 3.0));
 
       var color = vec4<f32>(${toFloat(baseColorFactor[0])},
                             ${toFloat(baseColorFactor[1])},
@@ -156,7 +159,7 @@ export default function frag(primitive: Primitive, material: any) {
                             ${toFloat(baseColorFactor[3])});
       ${
         baseColorTexture
-          ? `color = color * textureSample(tex, texSampler, uv${colorUV}); /* wgsl */`
+          ? `color = color * linearSample(tex, texSampler, uv${colorUV}); /* wgsl */`
           : ''
       }
       ${hasVertexColor ? 'color = color * vColor;' : ''}
@@ -181,9 +184,6 @@ export default function frag(primitive: Primitive, material: any) {
       }
       roughness = clamp(roughness, 0.04, 1.0);
 
-      let lightDir = normalize(lightPos - worldPos);
-      let viewDir = normalize(camera.eye - worldPos);
-
       ${
         normalTexture
           ? `var normal = textureSample(normalTex, normalSampler, uv${normalUV}).rgb;
@@ -193,14 +193,6 @@ export default function frag(primitive: Primitive, material: any) {
              normal = normal.x * tangent + normal.y * bitangent + normal.z * vNormal;
              normal = normalize(normal); /* wgsl */`
           : `var normal = normalize(vNormal); /* wgsl */`
-      }
-      ${
-        material.doubleSided
-          ? `if (dot(normal, viewDir) < 0.0)
-             {
-               normal = -normal;
-             } /* wgsl */`
-          : ''
       }
 
       ${
@@ -215,10 +207,21 @@ export default function frag(primitive: Primitive, material: any) {
                                ${toFloat(emissiveFactor[2])});
       ${
         emissiveTexture
-          ? `emissive = emissive * textureSample(emissiveTex, emissiveSampler, uv${emissiveUV}).rgb; /* wgsl */`
+          ? `emissive = emissive * linearSample(emissiveTex, emissiveSampler, uv${emissiveUV}).rgb; /* wgsl */`
           : ''
       }
 
-      return vec4<f32>(brdf(color.rgb, metallic, roughness, lightDir, viewDir, normal) * ao + emissive, color.a);
+      let viewDir = normalize(camera.eye - worldPos);
+      ${
+        material.doubleSided
+          ? `if (dot(normal, viewDir) < 0.0)
+             {
+               normal = -normal;
+             } /* wgsl */`
+          : ''
+      }
+
+      color = vec4<f32>(brdf(color.rgb, metallic, roughness, lightDir, viewDir, normal) * ao + emissive, color.a);
+      return pow(color, vec4<f32>(1.0 / 2.2));
   }`;
 }
