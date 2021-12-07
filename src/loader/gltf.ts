@@ -82,7 +82,7 @@ export class GLTF {
       return array;
     }
 
-    this.meshes = (json.meshes as Array<any>).map((mesh: any) =>
+    this.meshes = (json.meshes as Array<any>).map((mesh) =>
       (mesh.primitives as Array<any>).map((primitive) => {
         let material;
         if (json.materials && primitive.material !== undefined) {
@@ -151,7 +151,7 @@ export class GLTF {
     );
 
     this.textures = json.textures
-      ? (json.textures as Array<any>).map((texture: any) => {
+      ? (json.textures as Array<any>).map((texture) => {
           let sampler;
           if (texture.sampler !== undefined) {
             sampler = json.samplers[texture.sampler];
