@@ -6,6 +6,15 @@ by [Jiyu Huang](https://jiyuhuang.github.io/)
 
 [Live Demo](https://cis565-team6.github.io/webgpu-gltf-viewer/) (Requires Google Chrome Canary with `--enable-unsafe-webgpu` flag enabled)
 
+## Screenshots
+
+<p float="left">
+  <img src="imgs/DamagedHelmet.png" width="40%" />
+  <img src="imgs/Sponza.png" width="40%" />
+  <img src="imgs/VC.png" width="40%" />
+  <img src="imgs/Buggy.png" width="40%" />
+</p>
+
 ## Features
 
 ### Formats
