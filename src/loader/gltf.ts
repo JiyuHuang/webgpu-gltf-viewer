@@ -172,32 +172,79 @@ export class GLTF {
   }
 }
 
-export async function loadGLTF(url: string) {
+async function loadGLTFObject(json: any, url: string, bin?: ArrayBuffer) {
   const dir = url.substring(0, url.lastIndexOf('/'));
-  const json = await loadJson(url);
-
-  const buffers: Array<ArrayBuffer> = [];
-  const buffersLoaded = Promise.all(
-    json.buffers.map((buffer: any, index: number) =>
-      loadBuffer(`${dir}/${buffer.uri}`).then((arrayBuffer: ArrayBuffer) => {
-        buffers[index] = arrayBuffer;
-      })
-    )
-  );
 
   const images: Array<ImageBitmap> = [];
-  let imagesLoaded: Promise<any> = Promise.resolve();
+  let loadExternalImages: Promise<any> = Promise.resolve();
   if (json.images) {
-    imagesLoaded = Promise.all(
+    loadExternalImages = Promise.all(
       json.images.map((image: any, index: number) =>
-        loadImage(`${dir}/${image.uri}`).then((bitMap) => {
-          images[index] = bitMap;
-        })
+        image.uri
+          ? loadImage(`${dir}/${image.uri}`).then((bitMap) => {
+              images[index] = bitMap;
+            })
+          : Promise.resolve()
       )
     );
   }
 
-  return Promise.all([buffersLoaded, imagesLoaded]).then(
-    () => new GLTF(json, buffers, images)
+  const buffers: Array<ArrayBuffer> = [];
+  await Promise.all(
+    json.buffers.map((buffer: any, index: number) => {
+      if (!buffer.uri) {
+        buffers[index] = bin!;
+        return Promise.resolve();
+      }
+      return loadBuffer(`${dir}/${buffer.uri}`).then(
+        (arrayBuffer: ArrayBuffer) => {
+          buffers[index] = arrayBuffer;
+        }
+      );
+    })
   );
+
+  let loadInternalImages: Promise<any> = Promise.resolve();
+  if (json.images) {
+    loadInternalImages = Promise.all(
+      json.images.map(async (image: any, index: number) => {
+        if (image.bufferView !== undefined) {
+          const { buffer, byteOffset, byteLength } =
+            json.bufferViews[image.bufferView];
+          const array = new Uint8Array(buffers[buffer], byteOffset, byteLength);
+          let type;
+          if (image.mimeType) {
+            type = image.mimeType;
+          } else {
+            type = array[0] === 0xff ? 'image/jpeg' : 'image/png';
+          }
+          const blob = new Blob([array], { type });
+          images[index] = await createImageBitmap(blob, {
+            colorSpaceConversion: 'none',
+          });
+        }
+      })
+    );
+  }
+
+  await Promise.all([loadExternalImages, loadInternalImages]);
+  return new GLTF(json, buffers, images);
+}
+
+export async function loadGLTF(url: string) {
+  const ext = url.split('.').pop();
+  if (ext === 'gltf') {
+    const json = await loadJson(url);
+    return loadGLTFObject(json, url);
+  }
+  if (ext === 'glb') {
+    const glb = await loadBuffer(url);
+    const jsonLength = new Uint32Array(glb, 12, 1)[0];
+    const jsonChunk = new Uint8Array(glb, 20, jsonLength);
+    const json = JSON.parse(new TextDecoder('utf-8').decode(jsonChunk));
+    const binLength = new Uint32Array(glb, 20 + jsonLength, 1)[0];
+    const binChunk = glb.slice(28 + jsonLength, 28 + jsonLength + binLength);
+    return loadGLTFObject(json, url, binChunk);
+  }
+  throw new Error('file format not supported');
 }

@@ -70,7 +70,8 @@ export default function frag(primitive: Primitive, material: any) {
 
   fn linearSample(texture: texture_2d<f32>, texSampler: sampler, uv: vec2<f32>) -> vec4<f32>
   {
-    return pow(textureSample(texture, texSampler, uv), vec4<f32>(2.2));
+    let color = textureSample(texture, texSampler, uv);
+    return vec4<f32>(pow(color.rgb, vec3<f32>(2.2)), color.a);
   }
 
   let pi: f32 = 3.141592653589793;
@@ -123,7 +124,7 @@ export default function frag(primitive: Primitive, material: any) {
 
       let diffuse = (1.0 - f) / pi * diffuseColor;
       let specular = max(f * g * d / (4.0 * ndotl * ndotv), vec3<f32>(0.0));
-      return ndotl * (diffuse + specular) * 2.0 + color * 0.2;
+      return ndotl * (diffuse + specular) * 2.0 + color * 0.1;
   }
 
   [[stage(fragment)]]
@@ -221,7 +222,8 @@ export default function frag(primitive: Primitive, material: any) {
           : ''
       }
 
-      color = vec4<f32>(brdf(color.rgb, metallic, roughness, lightDir, viewDir, normal) * ao + emissive, color.a);
-      return pow(color, vec4<f32>(1.0 / 2.2));
+      var rgb = brdf(color.rgb, metallic, roughness, lightDir, viewDir, normal) * ao + emissive;
+      rgb = pow(rgb, vec3<f32>(1.0 / 2.2));
+      return vec4<f32>(rgb, color.a);
   }`;
 }
