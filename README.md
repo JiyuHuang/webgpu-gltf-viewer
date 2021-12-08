@@ -4,7 +4,7 @@
 
 by [Jiyu Huang](https://jiyuhuang.github.io/)
 
-[Live Demo](https://cis565-team6.github.io/webgpu-gltf-viewer/) (Requires Google Chrome Canary with `--enable-unsafe-webgpu` flag enabled)
+[Live Demo](https://jiyuhuang.github.io/webgpu-gltf-viewer/) (Requires Google Chrome Canary with `--enable-unsafe-webgpu` flag enabled)
 
 ## Screenshots
 
