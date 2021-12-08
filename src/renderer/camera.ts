@@ -17,6 +17,8 @@ export default class Camera {
 
   yfov = Math.PI / 3;
 
+  ymag?: number;
+
   proj = mat4.create();
 
   projView = mat4.create();
@@ -34,13 +36,16 @@ export default class Camera {
       this.update();
 
       let mousePressed = false;
-      canvas.onmousedown = () => {
+      canvas.onmousedown = (event) => {
+        event.preventDefault();
         mousePressed = true;
       };
-      canvas.onmouseup = () => {
+      canvas.onmouseup = (event) => {
+        event.preventDefault();
         mousePressed = false;
       };
       canvas.onmousemove = (event) => {
+        event.preventDefault();
         if (mousePressed) {
           this.theta -= (event.movementX / window.innerWidth) * Math.PI * 2;
           this.phi = clamp(
@@ -51,8 +56,8 @@ export default class Camera {
           this.update();
         }
       };
-
       canvas.onwheel = (event) => {
+        event.preventDefault();
         this.radius = clamp(this.radius + event.deltaY * 0.002, 0.05, Infinity);
         this.update();
       };
@@ -63,7 +68,12 @@ export default class Camera {
         this.yfov = yfov;
         mat4.perspective(this.proj, yfov, aspect, znear, zfar || Infinity);
       } else {
-        mat4.perspective(this.proj, this.yfov, aspect, 0.001, Infinity);
+        const { ymag, zfar, znear } = camera.json.orthographic;
+        this.ymag = ymag;
+        this.proj[0] = 1 / (ymag * aspect);
+        this.proj[5] = 1 / ymag;
+        this.proj[10] = 2 / (znear - zfar);
+        this.proj[14] = (zfar + znear) / (znear - zfar);
       }
       mat4.mul(this.projView, this.proj, this.view);
     }
@@ -90,9 +100,12 @@ export default class Camera {
     });
 
     window.addEventListener('resize', () => {
-      this.proj[0] =
-        1 /
-        (Math.tan(this.yfov / 2) * (canvas.clientWidth / canvas.clientHeight));
+      const newAspect = canvas.clientWidth / canvas.clientHeight;
+      if (this.ymag === undefined) {
+        this.proj[0] = 1 / (Math.tan(this.yfov / 2) * newAspect);
+      } else {
+        this.proj[0] = 1 / (this.ymag * newAspect);
+      }
       mat4.mul(this.projView, this.proj, this.view);
     });
   }

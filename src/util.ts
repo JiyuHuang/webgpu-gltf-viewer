@@ -40,14 +40,6 @@ export function loadBuffer(url: string) {
   });
 }
 
-export async function loadImage(url: string) {
-  const image = new Image();
-  image.crossOrigin = 'Anonymous';
-  image.src = url;
-  await image.decode();
-  return createImageBitmap(image, { colorSpaceConversion: 'none' });
-}
-
 export type TypedArray =
   | Int8Array
   | Uint8Array

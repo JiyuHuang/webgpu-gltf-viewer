@@ -3,7 +3,6 @@ import {
   generateTangents,
   gltfEnum,
   loadBuffer,
-  loadImage,
   loadJson,
   newTypedArray,
   toIndexArray,
@@ -46,7 +45,8 @@ export class GLTF {
   constructor(
     json: any,
     buffers: Array<ArrayBuffer>,
-    images: Array<ImageBitmap>
+    images: Array<ImageBitmap>,
+    glbOffset = 0
   ) {
     this.scenes = json.scenes;
     this.defaultScene = json.scene || 0;
@@ -63,7 +63,7 @@ export class GLTF {
       const array = newTypedArray(
         accessor.componentType,
         buffers[bufferView.buffer],
-        offset,
+        bufferView.buffer === 0 ? offset + glbOffset : offset,
         accessor.count * stride
       );
 
@@ -172,20 +172,29 @@ export class GLTF {
   }
 }
 
-async function loadGLTFObject(json: any, url: string, bin?: ArrayBuffer) {
+async function loadGLTFObject(
+  json: any,
+  url: string,
+  bin?: ArrayBuffer,
+  glbOffset = 0
+) {
   const dir = url.substring(0, url.lastIndexOf('/'));
 
   const images: Array<ImageBitmap> = [];
   let loadExternalImages: Promise<any> = Promise.resolve();
   if (json.images) {
     loadExternalImages = Promise.all(
-      json.images.map((image: any, index: number) =>
-        image.uri
-          ? loadImage(`${dir}/${image.uri}`).then((bitMap) => {
-              images[index] = bitMap;
-            })
-          : Promise.resolve()
-      )
+      json.images.map(async (image: any, index: number) => {
+        if (image.uri) {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.src = `${dir}/${image.uri}`;
+          await img.decode();
+          images[index] = await createImageBitmap(img, {
+            colorSpaceConversion: 'none',
+          });
+        }
+      })
     );
   }
 
@@ -193,6 +202,9 @@ async function loadGLTFObject(json: any, url: string, bin?: ArrayBuffer) {
   await Promise.all(
     json.buffers.map((buffer: any, index: number) => {
       if (!buffer.uri) {
+        if (index !== 0) {
+          throw new Error('buffer uri undefined');
+        }
         buffers[index] = bin!;
         return Promise.resolve();
       }
@@ -211,7 +223,11 @@ async function loadGLTFObject(json: any, url: string, bin?: ArrayBuffer) {
         if (image.bufferView !== undefined) {
           const { buffer, byteOffset, byteLength } =
             json.bufferViews[image.bufferView];
-          const array = new Uint8Array(buffers[buffer], byteOffset, byteLength);
+          const array = new Uint8Array(
+            buffers[buffer],
+            buffer === 0 ? byteOffset + glbOffset : byteOffset,
+            byteLength
+          );
           let type;
           if (image.mimeType) {
             type = image.mimeType;
@@ -228,7 +244,7 @@ async function loadGLTFObject(json: any, url: string, bin?: ArrayBuffer) {
   }
 
   await Promise.all([loadExternalImages, loadInternalImages]);
-  return new GLTF(json, buffers, images);
+  return new GLTF(json, buffers, images, glbOffset);
 }
 
 export async function loadGLTF(url: string) {
@@ -242,9 +258,7 @@ export async function loadGLTF(url: string) {
     const jsonLength = new Uint32Array(glb, 12, 1)[0];
     const jsonChunk = new Uint8Array(glb, 20, jsonLength);
     const json = JSON.parse(new TextDecoder('utf-8').decode(jsonChunk));
-    const binLength = new Uint32Array(glb, 20 + jsonLength, 1)[0];
-    const binChunk = glb.slice(28 + jsonLength, 28 + jsonLength + binLength);
-    return loadGLTFObject(json, url, binChunk);
+    return loadGLTFObject(json, url, glb, 28 + jsonLength);
   }
   throw new Error('file format not supported');
 }
