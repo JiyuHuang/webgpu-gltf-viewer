@@ -2,6 +2,8 @@ import { GLTF, loadGLTF } from '../loader/gltf';
 import Scene from './scene';
 import Camera from './camera';
 
+const Stats = require('stats.js');
+
 export class Renderer {
   canvas: HTMLCanvasElement;
 
@@ -65,7 +67,15 @@ export class Renderer {
   }
 
   render() {
+    const stats = new Stats();
+    stats.showPanel(0);
+    stats.dom.style.left = '';
+    stats.dom.style.right = '0px';
+    document.body.appendChild(stats.dom);
+
     const frame = () => {
+      stats.begin();
+
       const commandEncoder = this.device.createCommandEncoder();
       this.renderPassDesc.colorAttachments = [
         {
@@ -75,9 +85,7 @@ export class Renderer {
         },
       ];
       const passEncoder = commandEncoder.beginRenderPass(this.renderPassDesc);
-
       this.scene!.camera.bind(this.device, passEncoder);
-
       Object.entries(this.scene!.meshes).forEach(([, mesh]) => {
         mesh.primitives.forEach((primitive) => {
           if (!primitive.isTransparent) {
@@ -92,9 +100,11 @@ export class Renderer {
           }
         });
       });
-
       passEncoder.endPass();
       this.device.queue.submit([commandEncoder.finish()]);
+
+      stats.end();
+
       requestAnimationFrame(frame);
     };
 

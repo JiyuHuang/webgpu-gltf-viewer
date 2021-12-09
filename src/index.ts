@@ -36,12 +36,14 @@ fetch(
         };
         loadScene(models.value);
         models.onchange = () => loadScene(models.value);
-        cameras.onchange = () =>
+        cameras.onchange = () => {
           renderer.setCamera(
             cameras.value !== 'User Camera' ? Number(cameras.value) : undefined
           );
-        upload.onchange = () =>
+        };
+        upload.onchange = () => {
           loadScene(URL.createObjectURL(upload.files![0]));
+        };
       }
     });
   });

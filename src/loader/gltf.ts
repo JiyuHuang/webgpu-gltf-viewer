@@ -247,13 +247,6 @@ async function loadGLTFObject(
   return new GLTF(json, buffers, images, glbOffset);
 }
 
-export async function loadGLB(glb: ArrayBuffer) {
-  const jsonLength = new Uint32Array(glb, 12, 1)[0];
-  const jsonChunk = new Uint8Array(glb, 20, jsonLength);
-  const json = JSON.parse(new TextDecoder('utf-8').decode(jsonChunk));
-  return loadGLTFObject(json, '', glb, 28 + jsonLength);
-}
-
 export async function loadGLTF(url: string) {
   const ext = url.split('.').pop();
   if (ext === 'gltf') {
