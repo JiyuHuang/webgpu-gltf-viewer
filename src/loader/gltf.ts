@@ -64,7 +64,7 @@ export class GLTF {
         accessor.componentType,
         buffers[bufferView.buffer],
         bufferView.buffer === 0 ? offset + glbOffset : offset,
-        accessor.count * stride
+        (accessor.count - 1) * stride + n
       );
 
       if (stride > n) {
@@ -247,18 +247,22 @@ async function loadGLTFObject(
   return new GLTF(json, buffers, images, glbOffset);
 }
 
+export async function loadGLB(glb: ArrayBuffer) {
+  const jsonLength = new Uint32Array(glb, 12, 1)[0];
+  const jsonChunk = new Uint8Array(glb, 20, jsonLength);
+  const json = JSON.parse(new TextDecoder('utf-8').decode(jsonChunk));
+  return loadGLTFObject(json, '', glb, 28 + jsonLength);
+}
+
 export async function loadGLTF(url: string) {
   const ext = url.split('.').pop();
   if (ext === 'gltf') {
     const json = await loadJson(url);
     return loadGLTFObject(json, url);
   }
-  if (ext === 'glb') {
-    const glb = await loadBuffer(url);
-    const jsonLength = new Uint32Array(glb, 12, 1)[0];
-    const jsonChunk = new Uint8Array(glb, 20, jsonLength);
-    const json = JSON.parse(new TextDecoder('utf-8').decode(jsonChunk));
-    return loadGLTFObject(json, url, glb, 28 + jsonLength);
-  }
-  throw new Error('file format not supported');
+  const glb = await loadBuffer(url);
+  const jsonLength = new Uint32Array(glb, 12, 1)[0];
+  const jsonChunk = new Uint8Array(glb, 20, jsonLength);
+  const json = JSON.parse(new TextDecoder('utf-8').decode(jsonChunk));
+  return loadGLTFObject(json, url, glb, 28 + jsonLength);
 }

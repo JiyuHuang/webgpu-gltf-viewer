@@ -7,10 +7,13 @@
         margin: 0;
         padding: 0;
       }
-      #selects {
+      #gui {
         position: absolute;
         top: 0;
         left: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
       }
       #webgpu-canvas {
         position: absolute;
@@ -21,9 +24,13 @@
   </head>
   <body>
     <canvas id="webgpu-canvas"></canvas>
-    <div id="selects">
-      <select id="model-select"></select>
-      <select id="camera-select"></select>
+    <div id="gui">
+      <div id="selects">
+        <select id="model-select"></select>
+        <select id="camera-select"></select>
+      </div>
+      <label for="avatar">Upload your own model (glb):</label>
+      <input type="file" id="glb-upload" accept="model/gltf-binary" />
     </div>
   </body>
 </html>
