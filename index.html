@@ -2,13 +2,16 @@
         margin: 0;
         padding: 0;
       }
-      #selects {
+      #gui {
         position: absolute;
         top: 0;
         left: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
       }
       #webgpu-canvas {
         position: absolute;
         width: 100%;
         height: 100%;
-      }</style><script defer="defer" src="/webgpu-gltf-viewer/main.js"></script></head><body><canvas id="webgpu-canvas"></canvas><div id="selects"><select id="model-select"></select> <select id="camera-select"></select></div></body></html>
+      }</style><script defer="defer" src="/webgpu-gltf-viewer/main.js"></script></head><body><canvas id="webgpu-canvas"></canvas><div id="gui"><div id="selects"><select id="model-select"></select> <select id="camera-select"></select></div><label for="avatar">Upload your own glb file:</label> <input type="file" id="glb-upload" accept="model/gltf-binary"/></div></body></html>
