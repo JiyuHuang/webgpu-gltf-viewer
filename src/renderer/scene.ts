@@ -18,7 +18,7 @@ export default class Scene {
 
   camera: Camera;
 
-  cameras: Array<{ world: mat4; json: any }> = [];
+  cameras: Array<{ view: mat4; json: any }> = [];
 
   constructor(
     gltf: GLTF,
@@ -66,7 +66,9 @@ export default class Scene {
       }
 
       if (node.camera !== undefined) {
-        this.cameras.push({ world: matrix, json: gltf.cameras![node.camera] });
+        const newCamera = { view: matrix, json: gltf.cameras![node.camera] };
+        mat4.invert(newCamera.view, newCamera.view);
+        this.cameras.push(newCamera);
       }
 
       node.children?.forEach((childIndex: any) =>
@@ -101,10 +103,10 @@ export default class Scene {
         primitive.isTransparent = material.alphaMode === 'BLEND';
 
         textures.forEach((texture) => {
-          if (texture && !this.textures[texture.index]) {
-            const { width, height } = gltf.textures[texture.index].source;
-            this.textures[texture.index] = device.createTexture({
-              size: [width, height, 1],
+          if (texture && !this.textures[texture.source]) {
+            const image = gltf.images[texture.source];
+            this.textures[texture.source] = device.createTexture({
+              size: [image.width, image.height, 1],
               format: 'rgba8unorm',
               usage:
                 GPUTextureUsage.TEXTURE_BINDING | // eslint-disable-line no-bitwise
@@ -112,9 +114,9 @@ export default class Scene {
                 GPUTextureUsage.RENDER_ATTACHMENT,
             });
             device.queue.copyExternalImageToTexture(
-              { source: gltf.textures[texture.index].source },
-              { texture: this.textures[texture.index] },
-              [width, height]
+              { source: image },
+              { texture: this.textures[texture.source] },
+              [image.width, image.height]
             );
           }
         });
@@ -133,7 +135,7 @@ export default class Scene {
         textures.forEach((texture, n) => {
           if (texture) {
             const { addressModeU, addressModeV, magFilter, minFilter } =
-              gltf.textures[texture.index].sampler;
+              texture.sampler;
             bindGroupEntries.push({
               binding: n * 2 + 1,
               resource: device.createSampler({
@@ -145,7 +147,7 @@ export default class Scene {
             });
             bindGroupEntries.push({
               binding: n * 2 + 2,
-              resource: this.textures[texture.index].createView(),
+              resource: this.textures[texture.source].createView(),
             });
           }
         });

@@ -15,9 +15,13 @@ export class Renderer {
 
   renderPassDesc: GPURenderPassDescriptor;
 
+  requestId: number | undefined;
+
   gltf?: GLTF;
 
   scene?: Scene;
+
+  stats: any;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -64,17 +68,17 @@ export class Renderer {
       this.renderPassDesc.depthStencilAttachment!.view =
         depthTexture.createView();
     });
+
+    this.stats = new Stats();
+    this.stats.showPanel(0);
+    this.stats.dom.style.left = '';
+    this.stats.dom.style.right = '0px';
+    document.body.appendChild(this.stats.dom);
   }
 
   render() {
-    const stats = new Stats();
-    stats.showPanel(0);
-    stats.dom.style.left = '';
-    stats.dom.style.right = '0px';
-    document.body.appendChild(stats.dom);
-
     const frame = () => {
-      stats.begin();
+      this.stats.begin();
 
       const commandEncoder = this.device.createCommandEncoder();
       this.renderPassDesc.colorAttachments = [
@@ -103,16 +107,23 @@ export class Renderer {
       passEncoder.endPass();
       this.device.queue.submit([commandEncoder.finish()]);
 
-      stats.end();
+      this.stats.end();
 
-      requestAnimationFrame(frame);
+      if (this.requestId !== undefined) {
+        this.requestId = requestAnimationFrame(frame);
+      }
     };
 
-    requestAnimationFrame(frame);
+    this.requestId = requestAnimationFrame(frame);
   }
 
   async load(url: string) {
     this.gltf = await loadGLTF(url);
+
+    if (this.requestId !== undefined) {
+      cancelAnimationFrame(this.requestId);
+    }
+
     this.scene?.destroy();
     this.scene = new Scene(
       this.gltf,
@@ -121,6 +132,7 @@ export class Renderer {
       this.device,
       this.contextFormat
     );
+
     this.render();
   }
 

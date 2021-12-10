@@ -231,7 +231,27 @@ export function generateTangents(
   return tangents;
 }
 
-export const gltfEnum: { [key: number]: string } = {
+export function getTextures(material: any) {
+  const { baseColorTexture, metallicRoughnessTexture } =
+    material.pbrMetallicRoughness;
+  const { normalTexture, occlusionTexture, emissiveTexture } = material;
+  return [
+    baseColorTexture,
+    metallicRoughnessTexture,
+    normalTexture,
+    occlusionTexture,
+    emissiveTexture,
+  ];
+}
+
+export const gltfEnum: { [key: string]: string | number } = {
+  SCALAR: 1,
+  VEC2: 2,
+  VEC3: 3,
+  VEC4: 4,
+  MAT2: 4,
+  MAT3: 9,
+  MAT4: 16,
   9728: 'nearest',
   9729: 'linear',
   9984: 'linear',

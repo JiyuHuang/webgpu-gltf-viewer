@@ -1,6 +1,7 @@
 import vert from '../shaders/vert.wgsl';
 import frag from '../shaders/frag.wgsl';
 import Primitive from './primitive';
+import { getTextures } from '../util';
 
 export default function createPipeline(
   device: GPUDevice,
@@ -9,17 +10,6 @@ export default function createPipeline(
   primitive: Primitive,
   instanceCount: number
 ) {
-  const { baseColorTexture, metallicRoughnessTexture } =
-    material.pbrMetallicRoughness;
-  const { normalTexture, occlusionTexture, emissiveTexture } = material;
-  const textures = [
-    baseColorTexture,
-    metallicRoughnessTexture,
-    normalTexture,
-    occlusionTexture,
-    emissiveTexture,
-  ];
-
   let slotIndex = -1;
   function getVertexBufferLayout(n: number): GPUVertexBufferLayout {
     slotIndex += 1;
@@ -58,7 +48,7 @@ export default function createPipeline(
       buffer: {},
     },
   ];
-  textures.forEach((texture, index) => {
+  getTextures(material).forEach((texture, index) => {
     if (texture) {
       bindGroupLayoutEntries.push({
         binding: 2 * index + 1,

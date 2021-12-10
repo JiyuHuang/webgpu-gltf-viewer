@@ -62,7 +62,7 @@ export default class Camera {
         this.update();
       };
     } else {
-      mat4.invert(this.view, camera.world);
+      this.view = camera.view;
       if (camera.json.type === 'perspective') {
         const { yfov, zfar, znear } = camera.json.perspective;
         this.yfov = yfov;
@@ -72,8 +72,8 @@ export default class Camera {
         this.ymag = ymag;
         this.proj[0] = 1 / (ymag * aspect);
         this.proj[5] = 1 / ymag;
-        this.proj[10] = 2 / (znear - zfar);
-        this.proj[14] = (zfar + znear) / (znear - zfar);
+        this.proj[10] = 1 / (znear - zfar);
+        this.proj[14] = znear / (znear - zfar);
       }
       mat4.mul(this.projView, this.proj, this.view);
     }

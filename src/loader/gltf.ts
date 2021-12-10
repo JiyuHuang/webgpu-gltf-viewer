@@ -1,6 +1,7 @@
 import {
   generateNormals,
   generateTangents,
+  getTextures,
   gltfEnum,
   loadBuffer,
   loadJson,
@@ -29,18 +30,14 @@ export class GLTF {
       tangents: TypedArray | null;
       colors: TypedArray | null;
       material: any;
+      boundingBox: {
+        max: [number];
+        min: [number];
+      };
     }>
   >;
 
-  textures: Array<{
-    source: ImageBitmap;
-    sampler: {
-      magFilter: GPUFilterMode;
-      minFilter: GPUFilterMode;
-      addressModeU: GPUAddressMode;
-      addressModeV: GPUAddressMode;
-    };
-  }>;
+  images: Array<ImageBitmap>;
 
   constructor(
     json: any,
@@ -52,9 +49,49 @@ export class GLTF {
     this.defaultScene = json.scene || 0;
     this.nodes = json.nodes;
     this.cameras = json.cameras || null;
+    this.images = images;
 
-    function getArray(idx: number, n: number) {
-      const accessor = json.accessors[idx];
+    function getSampler(samplerJson: any) {
+      return {
+        magFilter: gltfEnum[samplerJson.magFilter || 9729] as GPUFilterMode,
+        minFilter: gltfEnum[samplerJson.minFilter || 9729] as GPUFilterMode,
+        addressModeU: gltfEnum[samplerJson.wrapS || 10497] as GPUAddressMode,
+        addressModeV: gltfEnum[samplerJson.wrapT || 10497] as GPUAddressMode,
+      };
+    }
+    const samplers = json.samplers
+      ? (json.samplers as Array<any>).map((sampler) => getSampler(sampler))
+      : [];
+    const defaultSampler = getSampler({});
+
+    const textures = json.textures
+      ? (json.textures as Array<any>).map((texture) => {
+          texture.sampler =
+            texture.sampler !== undefined
+              ? samplers[texture.sampler]
+              : defaultSampler;
+          return texture;
+        })
+      : [];
+
+    const materials = json.materials
+      ? (json.materials as Array<any>).map((material) => {
+          if (!material.pbrMetallicRoughness) {
+            material.pbrMetallicRoughness = {};
+          }
+          getTextures(material).forEach((texture) => {
+            if (texture) {
+              texture.source = textures[texture.index].source;
+              texture.sampler = textures[texture.index].sampler;
+            }
+          });
+          return material;
+        })
+      : [];
+    const defaultMaterial = { pbrMetallicRoughness: {} };
+
+    const accessors = (json.accessors as Array<any>).map((accessor) => {
+      const n = gltfEnum[accessor.type] as number;
       const bufferView = json.bufferViews[accessor.bufferView];
       const offset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
       let stride = bufferView.byteStride / 4;
@@ -80,45 +117,42 @@ export class GLTF {
         return strided;
       }
       return array;
-    }
+    });
 
     this.meshes = (json.meshes as Array<any>).map((mesh) =>
       (mesh.primitives as Array<any>).map((primitive) => {
-        let material;
-        if (json.materials && primitive.material !== undefined) {
-          material = json.materials[primitive.material];
-        } else {
-          material = {};
-        }
-        if (!material.pbrMetallicRoughness) {
-          material.pbrMetallicRoughness = {};
-        }
+        const material =
+          primitive.material !== undefined
+            ? materials[primitive.material]
+            : defaultMaterial;
 
         let indices = null;
         let vertexCount;
         if (primitive.indices !== undefined) {
-          indices = toIndexArray(getArray(primitive.indices, 1));
+          indices = toIndexArray(accessors[primitive.indices]);
           vertexCount = json.accessors[primitive.indices].count;
         } else {
           vertexCount = json.accessors[primitive.attributes.POSITION].count;
         }
 
-        const positions = getArray(primitive.attributes.POSITION, 3);
+        const positions = accessors[primitive.attributes.POSITION];
+        const { max, min } = json.accessors[primitive.attributes.POSITION];
+        const boundingBox = { max, min };
 
         let normals;
         if (primitive.attributes.NORMAL !== undefined) {
-          normals = getArray(primitive.attributes.NORMAL, 3);
+          normals = accessors[primitive.attributes.NORMAL];
         } else {
           normals = generateNormals(indices, positions);
         }
 
         let uvs = null;
         if (primitive.attributes.TEXCOORD_0 !== undefined) {
-          uvs = getArray(primitive.attributes.TEXCOORD_0, 2);
+          uvs = accessors[primitive.attributes.TEXCOORD_0];
         }
         let uv1s = null;
         if (primitive.attributes.TEXCOORD_1 !== undefined) {
-          uv1s = getArray(primitive.attributes.TEXCOORD_1, 2);
+          uv1s = accessors[primitive.attributes.TEXCOORD_1];
         }
 
         let tangents = null;
@@ -126,14 +160,14 @@ export class GLTF {
           primitive.attributes.TANGENT !== undefined &&
           primitive.attributes.NORMAL !== undefined
         ) {
-          tangents = getArray(primitive.attributes.TANGENT, 4);
+          tangents = accessors[primitive.attributes.TANGENT];
         } else if (material.normalTexture) {
           tangents = generateTangents(indices, positions, normals, uvs!);
         }
 
         let colors = null;
         if (primitive.attributes.COLOR_0 !== undefined) {
-          colors = getArray(primitive.attributes.COLOR_0, 4);
+          colors = accessors[primitive.attributes.COLOR_0];
         }
 
         return {
@@ -146,29 +180,10 @@ export class GLTF {
           tangents,
           colors,
           material,
+          boundingBox,
         };
       })
     );
-
-    this.textures = json.textures
-      ? (json.textures as Array<any>).map((texture) => {
-          let sampler;
-          if (texture.sampler !== undefined) {
-            sampler = json.samplers[texture.sampler];
-          } else {
-            sampler = {};
-          }
-          return {
-            source: images[texture.source],
-            sampler: {
-              magFilter: gltfEnum[sampler.magFilter || 9729] as GPUFilterMode,
-              minFilter: gltfEnum[sampler.minFilter || 9729] as GPUFilterMode,
-              addressModeU: gltfEnum[sampler.wrapS || 10497] as GPUAddressMode,
-              addressModeV: gltfEnum[sampler.wrapT || 10497] as GPUAddressMode,
-            },
-          };
-        })
-      : [];
   }
 }
 
