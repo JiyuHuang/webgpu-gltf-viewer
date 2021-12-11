@@ -54,9 +54,8 @@ export default class Node {
     }
 
     if (node) {
-      if (node.mesh !== undefined) {
-        this.mesh = node.mesh;
-      }
+      this.mesh = node.mesh;
+      this.camera = node.camera;
 
       if (node.children) {
         this.children = (node.children as Array<number>).map(
@@ -97,5 +96,34 @@ export default class Node {
       }
     }
     return aabb;
+  }
+
+  passMatrices(meshes: Array<any>) {
+    if (this.mesh !== undefined) {
+      const modelInvTr = mat4.create();
+      mat4.invert(modelInvTr, this.globalTransform);
+      mat4.transpose(modelInvTr, modelInvTr);
+      meshes[this.mesh].matrices.push(this.globalTransform);
+      meshes[this.mesh].matrices.push(modelInvTr);
+    }
+    this.children.forEach((child) => {
+      child.passMatrices(meshes);
+    });
+  }
+
+  getCameras(out: Array<any>, cameras: Array<any>) {
+    if (this.camera !== undefined) {
+      const newCamera = {
+        eye: vec3.create(),
+        view: mat4.create(),
+        json: cameras[this.camera],
+      };
+      vec3.transformMat4(newCamera.eye, newCamera.eye, this.globalTransform);
+      mat4.invert(newCamera.view, this.globalTransform);
+      out.push(newCamera);
+    }
+    this.children.forEach((child) => {
+      child.getCameras(out, cameras);
+    });
   }
 }

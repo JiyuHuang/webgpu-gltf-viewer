@@ -89,21 +89,28 @@ export class Renderer {
         },
       ];
       const passEncoder = commandEncoder.beginRenderPass(this.renderPassDesc);
+
       this.scene!.camera.bind(this.device, passEncoder);
-      Object.entries(this.scene!.meshes).forEach(([, mesh]) => {
-        mesh.primitives.forEach((primitive) => {
-          if (!primitive.isTransparent) {
-            primitive.draw(passEncoder, mesh.matrices.length / 2);
-          }
-        });
+
+      this.scene!.meshes.forEach((mesh) => {
+        if (mesh.matrixBuffer) {
+          mesh.primitives.forEach((primitive) => {
+            if (!primitive.isTransparent) {
+              primitive.draw(passEncoder, mesh.matrices.length / 2);
+            }
+          });
+        }
       });
-      Object.entries(this.scene!.meshes).forEach(([, mesh]) => {
-        mesh.primitives.forEach((primitive) => {
-          if (primitive.isTransparent) {
-            primitive.draw(passEncoder, mesh.matrices.length / 2);
-          }
-        });
+      this.scene!.meshes.forEach((mesh) => {
+        if (mesh.matrixBuffer) {
+          mesh.primitives.forEach((primitive) => {
+            if (primitive.isTransparent) {
+              primitive.draw(passEncoder, mesh.matrices.length / 2);
+            }
+          });
+        }
       });
+
       passEncoder.endPass();
       this.device.queue.submit([commandEncoder.finish()]);
 

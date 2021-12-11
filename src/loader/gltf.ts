@@ -17,7 +17,7 @@ export class GLTF {
 
   nodes: Array<any>;
 
-  cameras: Array<any> | null;
+  cameras: Array<any>;
 
   meshes: Array<
     Array<{
@@ -48,7 +48,7 @@ export class GLTF {
     this.scenes = json.scenes;
     this.defaultScene = json.scene || 0;
     this.nodes = json.nodes;
-    this.cameras = json.cameras || null;
+    this.cameras = json.cameras || [];
     this.images = images;
 
     function getSampler(samplerJson: any) {
