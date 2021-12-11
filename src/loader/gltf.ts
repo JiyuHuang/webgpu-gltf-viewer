@@ -206,7 +206,8 @@ export class GLTF {
           ({ sampler, target }) => ({
             input: accessors[animation.samplers[sampler].input],
             output: accessors[animation.samplers[sampler].output],
-            interpolation: 'LINEAR',
+            interpolation:
+              animation.samplers[sampler].interpolation || 'LINEAR',
             node: target.node,
             path: target.path,
           })

@@ -58,7 +58,7 @@ export default class Primitive {
   }
 
   draw(passEncoder: GPURenderPassEncoder, instanceCount: number) {
-    if (instanceCount > 0) {
+    if (instanceCount) {
       passEncoder.setPipeline(this.pipeline!);
       passEncoder.setVertexBuffer(0, this.positions);
       passEncoder.setVertexBuffer(1, this.normals);

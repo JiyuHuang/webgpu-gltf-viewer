@@ -132,27 +132,33 @@ export default class Node {
     });
   }
 
-  animate(animation: GLTFAnimation, t: number, parentUpdated = false) {
+  animate(
+    animations: Array<GLTFAnimation>,
+    time: number,
+    parentUpdated = false
+  ) {
     let updated = false;
-    let translation;
-    let rotation;
-    let scale;
-    const { channels, length } = animation;
-    channels.forEach(({ node, path, input, output, interpolation }) => {
-      if (node === this.index) {
-        switch (path) {
-          case 'translation':
-            translation = interpVec3(input, output, t % length, interpolation);
-            break;
-          case 'rotation':
-            rotation = interpQuat(input, output, t % length, interpolation);
-            break;
-          case 'scale':
-            scale = interpVec3(input, output, t % length, interpolation);
-            break;
-          default:
+    let translation: vec3 | undefined;
+    let rotation: quat | undefined;
+    let scale: vec3 | undefined;
+    animations.forEach(({ channels, length }) => {
+      channels.forEach(({ node, path, input, output, interpolation }) => {
+        if (node === this.index) {
+          const t = time % length;
+          switch (path) {
+            case 'translation':
+              translation = interpVec3(input, output, t, interpolation);
+              break;
+            case 'rotation':
+              rotation = interpQuat(input, output, t, interpolation);
+              break;
+            case 'scale':
+              scale = interpVec3(input, output, t, interpolation);
+              break;
+            default:
+          }
         }
-      }
+      });
     });
     if (parentUpdated || translation || rotation || scale) {
       mat4.mul(
@@ -168,7 +174,7 @@ export default class Node {
       updated = true;
     }
     this.children.forEach((child) => {
-      child.animate(animation, t, updated);
+      child.animate(animations, time, updated);
     });
   }
 }

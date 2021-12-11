@@ -264,28 +264,21 @@ export function interpQuat(
   while (index < input.length - 1 && time >= input[index]) {
     index += 1;
   }
-
-  const i = 4 * index;
-  const quat0 = quat.fromValues(
-    output[i - 4],
-    output[i - 3],
-    output[i - 2],
-    output[i - 1]
-  );
-  const quat1 = quat.fromValues(
-    output[i],
-    output[i + 1],
-    output[i + 2],
-    output[i + 3]
-  );
   const t = lerp(input[index - 1], input[index], time);
 
-  const result = quat.create();
-  switch (method) {
-    case 'LINEAR':
-    default:
-      return quat.slerp(result, quat0, quat1, t);
+  const q = [];
+  for (let n = -1; n < 1; n += 1) {
+    const i = 4 * (index + n);
+    q.push(
+      quat.fromValues(output[i], output[i + 1], output[i + 2], output[i + 3])
+    );
   }
+
+  if (method === 'STEP') {
+    return t < 1 ? q[0] : q[1];
+  }
+  const result = quat.create();
+  return quat.slerp(result, q[0], q[1], t);
 }
 
 export function interpVec3(
@@ -298,18 +291,19 @@ export function interpVec3(
   while (index < input.length - 1 && time >= input[index]) {
     index += 1;
   }
-
-  const i = 3 * index;
-  const v0 = vec3.fromValues(output[i - 3], output[i - 2], output[i - 1]);
-  const v1 = vec3.fromValues(output[i], output[i + 1], output[i + 2]);
   const t = lerp(input[index - 1], input[index], time);
 
-  const result = vec3.create();
-  switch (method) {
-    case 'LINEAR':
-    default:
-      return vec3.lerp(result, v0, v1, t);
+  const v = [];
+  for (let n = -1; n < 1; n += 1) {
+    const i = 3 * (index + n);
+    v.push(vec3.fromValues(output[i], output[i + 1], output[i + 2]));
   }
+
+  if (method === 'STEP') {
+    return t < 1 ? v[0] : v[1];
+  }
+  const result = vec3.create();
+  return vec3.lerp(result, v[0], v[1], t);
 }
 
 export const gltfEnum: { [key: string]: string | number } = {

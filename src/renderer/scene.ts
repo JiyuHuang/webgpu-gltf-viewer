@@ -25,8 +25,6 @@ export default class Scene {
 
   animations: Array<GLTFAnimation>;
 
-  currAnimation: number | null;
-
   startTime: number;
 
   constructor(
@@ -68,7 +66,7 @@ export default class Scene {
     });
 
     this.meshes.forEach((mesh, meshIndex) => {
-      if (mesh.matrices.length > 0) {
+      if (mesh.matrices.length) {
         mesh.matrixBuffer = createGPUBuffer(
           joinArray(mesh.matrices as Array<Float32Array>),
           GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
@@ -119,18 +117,14 @@ export default class Scene {
     });
 
     this.animations = gltf.animations;
-    this.currAnimation = this.animations.length > 0 ? 0 : null;
     this.startTime = Date.now() / 1000;
   }
 
   update(device: GPUDevice, passEncoder: GPURenderPassEncoder) {
     this.camera.bind(device, passEncoder);
 
-    if (this.currAnimation !== null) {
-      this.root.animate(
-        this.animations[this.currAnimation],
-        Date.now() / 1000 - this.startTime
-      );
+    if (this.animations.length) {
+      this.root.animate(this.animations, Date.now() / 1000 - this.startTime);
       this.meshes.forEach((mesh) => {
         mesh.matrices = [];
       });
