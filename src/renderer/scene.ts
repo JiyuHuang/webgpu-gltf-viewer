@@ -1,9 +1,10 @@
-import { mat4 } from 'gl-matrix';
+import { mat4, vec3 } from 'gl-matrix';
 import { GLTF } from '../loader/gltf';
 import createPipeline from './pipeline';
 import Primitive from './primitive';
 import { joinArray, createGPUBuffer } from '../util';
 import Camera from './camera';
+import Node from './node';
 
 export default class Scene {
   meshes: {
@@ -18,7 +19,9 @@ export default class Scene {
 
   camera: Camera;
 
-  cameras: Array<{ view: mat4; json: any }> = [];
+  cameras: Array<{ eye: vec3; view: mat4; json: any }> = [];
+
+  aabb: { max: vec3; min: vec3 };
 
   constructor(
     gltf: GLTF,
@@ -27,7 +30,13 @@ export default class Scene {
     device: GPUDevice,
     contextFormat: GPUTextureFormat
   ) {
-    this.camera = new Camera(canvas, device);
+    const root = new Node(gltf.nodes, -1, null);
+    root.children = gltf.scenes[sceneIndex].nodes.map(
+      (index: number) => new Node(gltf.nodes, index, root)
+    );
+    this.aabb = root.getAABB(gltf.meshes);
+
+    this.camera = new Camera(canvas, device, this.aabb);
 
     const createResource = (node: any, parentMatrix = mat4.create()) => {
       const matrix = mat4.clone(parentMatrix);
@@ -66,7 +75,12 @@ export default class Scene {
       }
 
       if (node.camera !== undefined) {
-        const newCamera = { view: matrix, json: gltf.cameras![node.camera] };
+        const newCamera = {
+          eye: vec3.create(),
+          view: matrix,
+          json: gltf.cameras![node.camera],
+        };
+        vec3.transformMat4(newCamera.eye, newCamera.eye, matrix);
         mat4.invert(newCamera.view, newCamera.view);
         this.cameras.push(newCamera);
       }

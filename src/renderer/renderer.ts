@@ -146,6 +146,7 @@ export class Renderer {
       this.scene.camera = new Camera(
         this.canvas,
         this.device,
+        this.scene.aabb,
         index !== undefined ? this.scene.cameras[index] : undefined
       );
     }
