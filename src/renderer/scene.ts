@@ -1,5 +1,5 @@
 import { mat4, vec3 } from 'gl-matrix';
-import { GLTF } from '../loader/gltf';
+import { GLTF, GLTFAnimation } from '../loader/gltf';
 import createPipeline from './pipeline';
 import Primitive from './primitive';
 import { joinArray, createGPUBuffer, getTextures } from '../util';
@@ -9,6 +9,12 @@ import Node from './node';
 export default class Scene {
   root: Node;
 
+  aabb: { max: vec3; min: vec3 };
+
+  cameras: Array<{ eye: vec3; view: mat4; json: any }> = [];
+
+  camera: Camera;
+
   meshes: Array<{
     matrices: Array<mat4>;
     matrixBuffer: GPUBuffer | undefined;
@@ -17,11 +23,11 @@ export default class Scene {
 
   textures: Array<GPUTexture>;
 
-  camera: Camera;
+  animations: Array<GLTFAnimation>;
 
-  cameras: Array<{ eye: vec3; view: mat4; json: any }> = [];
+  currAnimation: number | null;
 
-  aabb: { max: vec3; min: vec3 };
+  startTime: number;
 
   constructor(
     gltf: GLTF,
@@ -35,6 +41,8 @@ export default class Scene {
       (index: number) => new Node(gltf.nodes, index, this.root)
     );
     this.aabb = this.root.getAABB(gltf.meshes);
+    this.root.getCameras(this.cameras, gltf.cameras);
+    this.camera = new Camera(canvas, device, this.aabb);
 
     this.meshes = gltf.meshes.map((mesh) => ({
       matrices: [],
@@ -63,12 +71,12 @@ export default class Scene {
       if (mesh.matrices.length > 0) {
         mesh.matrixBuffer = createGPUBuffer(
           joinArray(mesh.matrices as Array<Float32Array>),
-          GPUBufferUsage.UNIFORM,
+          GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
           device
         );
 
         mesh.primitives.forEach((primitive, primIndex) => {
-          const { material } = gltf.meshes[Number(meshIndex)][primIndex];
+          const { material } = gltf.meshes[meshIndex][primIndex];
 
           primitive.isTransparent = material.alphaMode === 'BLEND';
 
@@ -110,8 +118,36 @@ export default class Scene {
       }
     });
 
-    this.camera = new Camera(canvas, device, this.aabb);
-    this.root.getCameras(this.cameras, gltf.cameras);
+    this.animations = gltf.animations;
+    this.currAnimation = this.animations.length > 0 ? 0 : null;
+    this.startTime = Date.now() / 1000;
+  }
+
+  update(device: GPUDevice, passEncoder: GPURenderPassEncoder) {
+    this.camera.bind(device, passEncoder);
+
+    if (this.currAnimation !== null) {
+      this.root.animate(
+        this.animations[this.currAnimation],
+        Date.now() / 1000 - this.startTime
+      );
+      this.meshes.forEach((mesh) => {
+        mesh.matrices = [];
+      });
+      this.root.passMatrices(this.meshes);
+      this.meshes.forEach((mesh) => {
+        if (mesh.matrixBuffer) {
+          const matrices = joinArray(mesh.matrices as Array<Float32Array>);
+          device.queue.writeBuffer(
+            mesh.matrixBuffer!,
+            0,
+            matrices.buffer,
+            matrices.byteOffset,
+            matrices.byteLength
+          );
+        }
+      });
+    }
   }
 
   destroy() {

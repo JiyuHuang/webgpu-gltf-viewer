@@ -1,4 +1,4 @@
-import { vec2, vec3 } from 'gl-matrix';
+import { quat, vec2, vec3 } from 'gl-matrix';
 
 export function clamp(num: number, min: number, max: number) {
   return Math.min(Math.max(num, min), max);
@@ -242,6 +242,74 @@ export function getTextures(material: any) {
     occlusionTexture,
     emissiveTexture,
   ];
+}
+
+function lerp(a: number, b: number, x: number) {
+  if (x < a) {
+    return 0;
+  }
+  if (x > b) {
+    return 1;
+  }
+  return (x - a) / (b - a);
+}
+
+export function interpQuat(
+  input: TypedArray,
+  output: TypedArray,
+  time: number,
+  method: string
+) {
+  let index = 1;
+  while (index < input.length - 1 && time >= input[index]) {
+    index += 1;
+  }
+
+  const i = 4 * index;
+  const quat0 = quat.fromValues(
+    output[i - 4],
+    output[i - 3],
+    output[i - 2],
+    output[i - 1]
+  );
+  const quat1 = quat.fromValues(
+    output[i],
+    output[i + 1],
+    output[i + 2],
+    output[i + 3]
+  );
+  const t = lerp(input[index - 1], input[index], time);
+
+  const result = quat.create();
+  switch (method) {
+    case 'LINEAR':
+    default:
+      return quat.slerp(result, quat0, quat1, t);
+  }
+}
+
+export function interpVec3(
+  input: TypedArray,
+  output: TypedArray,
+  time: number,
+  method: string
+) {
+  let index = 1;
+  while (index < input.length - 1 && time >= input[index]) {
+    index += 1;
+  }
+
+  const i = 3 * index;
+  const v0 = vec3.fromValues(output[i - 3], output[i - 2], output[i - 1]);
+  const v1 = vec3.fromValues(output[i], output[i + 1], output[i + 2]);
+  const t = lerp(input[index - 1], input[index], time);
+
+  const result = vec3.create();
+  switch (method) {
+    case 'LINEAR':
+    default:
+      return vec3.lerp(result, v0, v1, t);
+  }
 }
 
 export const gltfEnum: { [key: string]: string | number } = {

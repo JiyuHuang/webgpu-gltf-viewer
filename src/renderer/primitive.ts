@@ -1,3 +1,4 @@
+import { GLTFPrimitive } from '../loader/gltf';
 import { createGPUBuffer } from '../util';
 
 export default class Primitive {
@@ -25,7 +26,7 @@ export default class Primitive {
 
   uniformBindGroup: GPUBindGroup | undefined;
 
-  constructor(primitive: any, device: GPUDevice) {
+  constructor(primitive: GLTFPrimitive, device: GPUDevice) {
     this.vertexCount = primitive.vertexCount;
     this.indexFormat =
       primitive.indices instanceof Uint16Array ? 'uint16' : 'uint32';
@@ -57,32 +58,34 @@ export default class Primitive {
   }
 
   draw(passEncoder: GPURenderPassEncoder, instanceCount: number) {
-    passEncoder.setPipeline(this.pipeline!);
-    passEncoder.setVertexBuffer(0, this.positions);
-    passEncoder.setVertexBuffer(1, this.normals);
-    let location = 2;
-    if (this.uvs) {
-      passEncoder.setVertexBuffer(location, this.uvs);
-      location += 1;
-    }
-    if (this.uv1s) {
-      passEncoder.setVertexBuffer(location, this.uv1s);
-      location += 1;
-    }
-    if (this.tangents) {
-      passEncoder.setVertexBuffer(location, this.tangents);
-      location += 1;
-    }
-    if (this.colors) {
-      passEncoder.setVertexBuffer(location, this.colors);
-      location += 1;
-    }
-    passEncoder.setBindGroup(1, this.uniformBindGroup!);
-    if (this.indices) {
-      passEncoder.setIndexBuffer(this.indices, this.indexFormat);
-      passEncoder.drawIndexed(this.vertexCount, instanceCount);
-    } else {
-      passEncoder.draw(this.vertexCount, instanceCount);
+    if (instanceCount > 0) {
+      passEncoder.setPipeline(this.pipeline!);
+      passEncoder.setVertexBuffer(0, this.positions);
+      passEncoder.setVertexBuffer(1, this.normals);
+      let location = 2;
+      if (this.uvs) {
+        passEncoder.setVertexBuffer(location, this.uvs);
+        location += 1;
+      }
+      if (this.uv1s) {
+        passEncoder.setVertexBuffer(location, this.uv1s);
+        location += 1;
+      }
+      if (this.tangents) {
+        passEncoder.setVertexBuffer(location, this.tangents);
+        location += 1;
+      }
+      if (this.colors) {
+        passEncoder.setVertexBuffer(location, this.colors);
+        location += 1;
+      }
+      passEncoder.setBindGroup(1, this.uniformBindGroup!);
+      if (this.indices) {
+        passEncoder.setIndexBuffer(this.indices, this.indexFormat);
+        passEncoder.drawIndexed(this.vertexCount, instanceCount);
+      } else {
+        passEncoder.draw(this.vertexCount, instanceCount);
+      }
     }
   }
 

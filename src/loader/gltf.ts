@@ -10,6 +10,35 @@ import {
   TypedArray,
 } from '../util';
 
+export type GLTFPrimitive = {
+  vertexCount: number;
+  indices: Uint16Array | Uint32Array | null;
+  positions: TypedArray;
+  normals: TypedArray;
+  uvs: TypedArray | null;
+  uv1s: TypedArray | null;
+  tangents: TypedArray | null;
+  colors: TypedArray | null;
+  material: any;
+  boundingBox: {
+    max: [number, number, number];
+    min: [number, number, number];
+  };
+};
+
+export type GLTFMesh = Array<GLTFPrimitive>;
+
+export type GLTFAnimation = {
+  channels: Array<{
+    input: TypedArray;
+    output: TypedArray;
+    interpolation: string;
+    node: number;
+    path: string;
+  }>;
+  length: number;
+};
+
 export class GLTF {
   scenes: Array<any>;
 
@@ -19,25 +48,11 @@ export class GLTF {
 
   cameras: Array<any>;
 
-  meshes: Array<
-    Array<{
-      vertexCount: number;
-      indices: Uint16Array | Uint32Array | null;
-      positions: TypedArray;
-      normals: TypedArray;
-      uvs: TypedArray | null;
-      uv1s: TypedArray | null;
-      tangents: TypedArray | null;
-      colors: TypedArray | null;
-      material: any;
-      boundingBox: {
-        max: [number];
-        min: [number];
-      };
-    }>
-  >;
+  meshes: Array<GLTFMesh>;
 
   images: Array<ImageBitmap>;
+
+  animations: Array<GLTFAnimation>;
 
   constructor(
     json: any,
@@ -184,6 +199,24 @@ export class GLTF {
         };
       })
     );
+
+    this.animations =
+      (json.animations as Array<any>)?.map((animation) => {
+        const channels = (animation.channels as Array<any>).map(
+          ({ sampler, target }) => ({
+            input: accessors[animation.samplers[sampler].input],
+            output: accessors[animation.samplers[sampler].output],
+            interpolation: 'LINEAR',
+            node: target.node,
+            path: target.path,
+          })
+        );
+        const length = channels.reduce(
+          (acc, { input }) => Math.max(acc, input[input.length - 1]),
+          0
+        );
+        return { channels, length };
+      }) || [];
   }
 }
 

@@ -1,4 +1,6 @@
 import { mat4, quat, vec3 } from 'gl-matrix';
+import { GLTFAnimation, GLTFMesh } from '../loader/gltf';
+import { interpQuat, interpVec3 } from '../util';
 
 export default class Node {
   translation = vec3.create();
@@ -13,12 +15,15 @@ export default class Node {
 
   camera?: number;
 
+  index: number;
+
   parent: Node | null;
 
   children: Array<Node> = [];
 
   constructor(nodes: Array<any>, index: number, parent: Node | null) {
     this.parent = parent;
+    this.index = index;
 
     const node = nodes[index];
 
@@ -65,7 +70,7 @@ export default class Node {
     }
   }
 
-  getAABB(meshes: Array<Array<any>>) {
+  getAABB(meshes: Array<GLTFMesh>) {
     const aabb = {
       max: vec3.fromValues(-Infinity, -Infinity, -Infinity),
       min: vec3.fromValues(Infinity, Infinity, Infinity),
@@ -98,19 +103,6 @@ export default class Node {
     return aabb;
   }
 
-  passMatrices(meshes: Array<any>) {
-    if (this.mesh !== undefined) {
-      const modelInvTr = mat4.create();
-      mat4.invert(modelInvTr, this.globalTransform);
-      mat4.transpose(modelInvTr, modelInvTr);
-      meshes[this.mesh].matrices.push(this.globalTransform);
-      meshes[this.mesh].matrices.push(modelInvTr);
-    }
-    this.children.forEach((child) => {
-      child.passMatrices(meshes);
-    });
-  }
-
   getCameras(out: Array<any>, cameras: Array<any>) {
     if (this.camera !== undefined) {
       const newCamera = {
@@ -124,6 +116,59 @@ export default class Node {
     }
     this.children.forEach((child) => {
       child.getCameras(out, cameras);
+    });
+  }
+
+  passMatrices(meshes: Array<any>) {
+    if (this.mesh !== undefined) {
+      const modelInvTr = mat4.create();
+      mat4.invert(modelInvTr, this.globalTransform);
+      mat4.transpose(modelInvTr, modelInvTr);
+      meshes[this.mesh].matrices.push(this.globalTransform);
+      meshes[this.mesh].matrices.push(modelInvTr);
+    }
+    this.children.forEach((child) => {
+      child.passMatrices(meshes);
+    });
+  }
+
+  animate(animation: GLTFAnimation, t: number, parentUpdated = false) {
+    let updated = false;
+    let translation;
+    let rotation;
+    let scale;
+    const { channels, length } = animation;
+    channels.forEach(({ node, path, input, output, interpolation }) => {
+      if (node === this.index) {
+        switch (path) {
+          case 'translation':
+            translation = interpVec3(input, output, t % length, interpolation);
+            break;
+          case 'rotation':
+            rotation = interpQuat(input, output, t % length, interpolation);
+            break;
+          case 'scale':
+            scale = interpVec3(input, output, t % length, interpolation);
+            break;
+          default:
+        }
+      }
+    });
+    if (parentUpdated || translation || rotation || scale) {
+      mat4.mul(
+        this.globalTransform,
+        this.parent!.globalTransform,
+        mat4.fromRotationTranslationScale(
+          this.globalTransform,
+          rotation || this.rotation,
+          translation || this.translation,
+          scale || this.scale
+        )
+      );
+      updated = true;
+    }
+    this.children.forEach((child) => {
+      child.animate(animation, t, updated);
     });
   }
 }
