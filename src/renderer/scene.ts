@@ -158,8 +158,6 @@ export default class Scene {
   }
 
   update(device: GPUDevice, passEncoder: GPURenderPassEncoder) {
-    (this.presetCamera || this.userCamera).update(device, passEncoder);
-
     if (this.animations.length) {
       this.root.animate(this.animations, Date.now() / 1000 - this.startTime);
       this.meshes.forEach((mesh) => {
@@ -179,6 +177,7 @@ export default class Scene {
         }
       });
     }
+    (this.presetCamera || this.userCamera).update(device, passEncoder);
   }
 
   destroy() {

@@ -14,12 +14,11 @@ This is a physically-based rendering engine for loading and displaying glTF 2.0 
 
 ## Screenshots
 
-<p float="left">
-  <img src="imgs/DamagedHelmet.png" width="40%" />
-  <img src="imgs/Sponza.png" width="40%" />
-  <img src="imgs/VC.png" width="40%" />
-  <img src="imgs/Buggy.png" width="40%" />
-</p>
+![](imgs/VC.gif)
+![](imgs/ToyCar.png)
+![](imgs/DamagedHelmet.png)
+![](imgs/Sponza.png)
+![](imgs/Buggy.png)
 
 ## Features
 
@@ -42,7 +41,6 @@ This is a physically-based rendering engine for loading and displaying glTF 2.0 
   - [x] Metallic-Roughness Material
   - [x] Additional Textures
   - [x] Alpha Coverage
-  - [x] Double Sided
 - [x] Meshes (topology type: triangles only)
 - [x] Nodes
 - [x] Samplers
