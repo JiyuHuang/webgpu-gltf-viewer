@@ -3,17 +3,20 @@ import { GLTF, GLTFAnimation } from '../loader/gltf';
 import createPipeline from './pipeline';
 import Primitive from './primitive';
 import { joinArray, createGPUBuffer, getTextures } from '../util';
-import Camera from './camera';
 import Node from './node';
+import UserCamera from './camera/user-camera';
+import PresetCamera from './camera/preset-camera';
 
 export default class Scene {
   root: Node;
 
   aabb: { max: vec3; min: vec3 };
 
-  cameras: Array<{ eye: vec3; view: mat4; json: any }> = [];
+  cameras: Array<PresetCamera> = [];
 
-  camera: Camera;
+  presetCamera: PresetCamera | null = null;
+
+  userCamera: UserCamera;
 
   meshes: Array<{
     matrices: Array<mat4>;
@@ -39,8 +42,42 @@ export default class Scene {
       (index: number) => new Node(gltf.nodes, index, this.root)
     );
     this.aabb = this.root.getAABB(gltf.meshes);
-    this.root.getCameras(this.cameras, gltf.cameras);
-    this.camera = new Camera(canvas, device, this.aabb);
+
+    const projViewBuffer = device.createBuffer({
+      size: 4 * 4 * 4,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
+    });
+    const eyeBuffer = device.createBuffer({
+      size: 4 * 3,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, // eslint-disable-line no-bitwise
+    });
+    const cameraBindGroup = device.createBindGroup({
+      layout: device.createBindGroupLayout({
+        entries: [
+          { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {} },
+          { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: {} },
+        ],
+      }),
+      entries: [
+        { binding: 0, resource: { buffer: projViewBuffer } },
+        { binding: 1, resource: { buffer: eyeBuffer } },
+      ],
+    });
+    this.userCamera = new UserCamera(
+      projViewBuffer,
+      eyeBuffer,
+      cameraBindGroup,
+      canvas,
+      this.aabb
+    );
+    this.root.createCameras(
+      this.cameras,
+      gltf,
+      projViewBuffer,
+      eyeBuffer,
+      cameraBindGroup,
+      canvas
+    );
 
     this.meshes = gltf.meshes.map((mesh) => ({
       matrices: [],
@@ -121,7 +158,7 @@ export default class Scene {
   }
 
   update(device: GPUDevice, passEncoder: GPURenderPassEncoder) {
-    this.camera.bind(device, passEncoder);
+    (this.presetCamera || this.userCamera).update(device, passEncoder);
 
     if (this.animations.length) {
       this.root.animate(this.animations, Date.now() / 1000 - this.startTime);
@@ -145,7 +182,7 @@ export default class Scene {
   }
 
   destroy() {
-    this.camera.destroy();
+    this.userCamera.destroy();
     this.meshes.forEach((mesh) => {
       mesh.matrixBuffer?.destroy();
       mesh.primitives.forEach((primitive) => {

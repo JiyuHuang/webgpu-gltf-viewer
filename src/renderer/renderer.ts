@@ -1,6 +1,5 @@
 import { GLTF, loadGLTF } from '../loader/gltf';
 import Scene from './scene';
-import Camera from './camera';
 
 const Stats = require('stats.js');
 
@@ -144,14 +143,14 @@ export class Renderer {
   }
 
   setCamera(index?: number) {
-    this.scene?.camera.destroy();
     if (this.scene) {
-      this.scene.camera = new Camera(
-        this.canvas,
-        this.device,
-        this.scene.aabb,
-        index !== undefined ? this.scene.cameras[index] : undefined
-      );
+      if (index !== undefined) {
+        this.scene.presetCamera = this.scene.cameras[index];
+        this.scene.presetCamera.needUpdate = true;
+      } else {
+        this.scene.presetCamera = null;
+        this.scene.userCamera.reset(this.scene.aabb);
+      }
     }
   }
 }

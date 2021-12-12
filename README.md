@@ -49,7 +49,6 @@ This is a physically-based rendering engine for loading and displaying glTF 2.0 
 - [x] Scenes
 - [x] Textures
 - [x] Animations
-  - [ ] Camera Animation
   - [ ] Cubic Spline Interpolation
 - [ ] Skins
 

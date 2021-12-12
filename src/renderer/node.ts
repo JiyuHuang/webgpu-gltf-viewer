@@ -1,8 +1,11 @@
 import { mat4, quat, vec3 } from 'gl-matrix';
-import { GLTFAnimation, GLTFMesh } from '../loader/gltf';
+import { GLTF, GLTFAnimation, GLTFMesh } from '../loader/gltf';
 import { interpQuat, interpVec3 } from '../util';
+import PresetCamera from './camera/preset-camera';
 
 export default class Node {
+  matrix?: mat4;
+
   translation = vec3.create();
 
   rotation = quat.create();
@@ -13,7 +16,7 @@ export default class Node {
 
   mesh?: number;
 
-  camera?: number;
+  camera?: PresetCamera;
 
   index: number;
 
@@ -32,6 +35,7 @@ export default class Node {
         mat4.getTranslation(this.translation, node.matrix);
         mat4.getRotation(this.rotation, node.matrix);
         mat4.getScaling(this.scale, node.matrix);
+        this.matrix = node.matrix;
       }
       if (node.translation) {
         this.translation = node.translation;
@@ -44,12 +48,16 @@ export default class Node {
       }
     }
 
-    mat4.fromRotationTranslationScale(
-      this.globalTransform,
-      this.rotation,
-      this.translation,
-      this.scale
-    );
+    if (this.matrix) {
+      this.globalTransform = mat4.clone(this.matrix);
+    } else {
+      mat4.fromRotationTranslationScale(
+        this.globalTransform,
+        this.rotation,
+        this.translation,
+        this.scale
+      );
+    }
     if (parent) {
       mat4.mul(
         this.globalTransform,
@@ -60,7 +68,6 @@ export default class Node {
 
     if (node) {
       this.mesh = node.mesh;
-      this.camera = node.camera;
 
       if (node.children) {
         this.children = (node.children as Array<number>).map(
@@ -103,20 +110,37 @@ export default class Node {
     return aabb;
   }
 
-  getCameras(out: Array<any>, cameras: Array<any>) {
-    if (this.camera !== undefined) {
-      const newCamera = {
-        eye: vec3.create(),
-        view: mat4.create(),
-        json: cameras[this.camera],
-      };
-      vec3.transformMat4(newCamera.eye, newCamera.eye, this.globalTransform);
-      mat4.invert(newCamera.view, this.globalTransform);
-      out.push(newCamera);
+  createCameras(
+    cameras: Array<PresetCamera>,
+    gltf: GLTF,
+    projViewBuffer: GPUBuffer,
+    eyeBuffer: GPUBuffer,
+    bindGroup: GPUBindGroup,
+    canvas: HTMLCanvasElement
+  ) {
+    if (this.index >= 0) {
+      if (gltf.nodes[this.index].camera !== undefined) {
+        this.camera = new PresetCamera(
+          projViewBuffer,
+          eyeBuffer,
+          bindGroup,
+          canvas,
+          this.globalTransform,
+          gltf.cameras[gltf.nodes[this.index].camera]
+        );
+        cameras.push(this.camera);
+      }
     }
-    this.children.forEach((child) => {
-      child.getCameras(out, cameras);
-    });
+    this.children.forEach((child) =>
+      child.createCameras(
+        cameras,
+        gltf,
+        projViewBuffer,
+        eyeBuffer,
+        bindGroup,
+        canvas
+      )
+    );
   }
 
   passMatrices(meshes: Array<any>) {
@@ -172,6 +196,10 @@ export default class Node {
         )
       );
       updated = true;
+      if (this.camera) {
+        this.camera.globalTransform = this.globalTransform;
+        this.camera.needUpdate = true;
+      }
     }
     this.children.forEach((child) => {
       child.animate(animations, time, updated);
