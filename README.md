@@ -78,4 +78,5 @@ For local usage, follow these instructions:
 ## References
 
 - [WebGPU Samples](https://github.com/austinEng/webgpu-samples)
+- Alain's [Raw WebGPU](https://alain.xyz/blog/raw-webgpu) tutorial
 - [Khronos glTF 2.0 Sample Viewer](https://github.com/KhronosGroup/glTF-Sample-Viewer) and [minimal-gltf-loader](https://github.com/shrekshao/minimal-gltf-loader) for metallic-roughness shading implementation details
