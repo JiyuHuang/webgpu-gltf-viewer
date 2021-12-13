@@ -4,13 +4,11 @@
 
 by [Jiyu Huang](https://jiyuhuang.github.io/)
 
----
-
 This is a physically-based rendering engine for loading and displaying glTF 2.0 files, using the emerging WebGPU API.
 
 ## Live Demo
 
-[Live Demo](https://jiyuhuang.github.io/webgpu-gltf-viewer/) (Requires Google Chrome Canary, Chrome Dev or Microsoft Edge Canary with `enable-unsafe-webgpu` flag on)
+[Live Demo Link](https://jiyuhuang.github.io/webgpu-gltf-viewer/). Requires browsers with WebGPU support (for example, Google Chrome Canary or Chrome Dev with `enable-unsafe-webgpu` flag on).
 
 ## Screenshots
 
@@ -54,7 +52,14 @@ This is a physically-based rendering engine for loading and displaying glTF 2.0 
 
 - [x] EXT_mesh_gpu_instancing
 
-## Local Installation
+## Usage
+
+### Controls
+
+- camera rotation: drag and move
+- zoom in/out: scroll in/out
+
+### Local Installation
 
 For local usage, follow these instructions:
 
@@ -62,6 +67,13 @@ For local usage, follow these instructions:
 2. Run `npm install`
 3. Run `npm start`
 4. Go to `http://localhost:8080/` using a browser that has WebGPU enabled
+
+## Next Steps
+
+1. Skinning and morph target animation
+2. Complete core glTF 2.0
+3. Image-based lighting
+4. Material extensions
 
 ## References
 

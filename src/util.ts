@@ -211,13 +211,13 @@ export function generateTangents(
     const duv2 = vec2.create();
     vec2.sub(duv2, uv[2], uv[0]);
 
-    const sign = duv2[1] * duv1[0] - duv1[1] * duv2[0] >= 0 ? 1 : -1;
     const tangent = vec3.create();
     vec3.sub(
       tangent,
       vec3.scale(dv1, dv1, duv2[1]),
       vec3.scale(dv2, dv2, duv1[1])
     );
+    vec3.scale(tangent, tangent, duv2[1] * duv1[0] - duv1[1] * duv2[0]);
     vec3.normalize(tangent, tangent);
 
     for (let n = 0; n < 3; n += 1) {
@@ -225,7 +225,7 @@ export function generateTangents(
       for (let t = 0; t < 3; t += 1) {
         tangents[index + t] += tangent[t];
       }
-      tangents[index + 3] = sign;
+      tangents[index + 3] = 1;
     }
   }
   return tangents;
