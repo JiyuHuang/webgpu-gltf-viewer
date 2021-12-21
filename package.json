@@ -19,7 +19,7 @@
     "glTF 2.0"
   ],
   "author": "Jiyu Huang",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/JiyuHuang/webgpu-gltf-viewer/issues"
   },
