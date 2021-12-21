@@ -12,34 +12,6 @@ export function toFloat(num: number | undefined, defaultValue = 1) {
   return n;
 }
 
-export function loadJson(url: string) {
-  return new Promise<any>((resolve) => {
-    const xobj = new XMLHttpRequest();
-    xobj.overrideMimeType('application/json');
-    xobj.open('GET', url);
-    xobj.onreadystatechange = () => {
-      if (xobj.readyState === 4 && xobj.status === 200) {
-        resolve(JSON.parse(xobj.responseText));
-      }
-    };
-    xobj.send(null);
-  });
-}
-
-export function loadBuffer(url: string) {
-  return new Promise<ArrayBuffer>((resolve) => {
-    const xobj = new XMLHttpRequest();
-    xobj.responseType = 'arraybuffer';
-    xobj.open('GET', url);
-    xobj.onreadystatechange = () => {
-      if (xobj.readyState === 4 && xobj.status === 200) {
-        resolve(xobj.response);
-      }
-    };
-    xobj.send(null);
-  });
-}
-
 export type TypedArray =
   | Int8Array
   | Uint8Array

@@ -3,8 +3,6 @@ import {
   generateTangents,
   getTextures,
   gltfEnum,
-  loadBuffer,
-  loadJson,
   newTypedArray,
   toIndexArray,
   TypedArray,
@@ -235,13 +233,13 @@ async function loadGLTFObject(
     loadExternalImages = Promise.all(
       json.images.map(async (image: any, index: number) => {
         if (image.uri) {
-          const img = new Image();
-          img.crossOrigin = 'Anonymous';
-          img.src = `${dir}/${image.uri}`;
-          await img.decode();
-          images[index] = await createImageBitmap(img, {
-            colorSpaceConversion: 'none',
-          });
+          images[index] = await fetch(`${dir}/${image.uri}`)
+            .then((response) => response.blob())
+            .then((blob) =>
+              createImageBitmap(blob, {
+                colorSpaceConversion: 'none',
+              })
+            );
         }
       })
     );
@@ -257,11 +255,11 @@ async function loadGLTFObject(
         buffers[index] = bin!;
         return Promise.resolve();
       }
-      return loadBuffer(`${dir}/${buffer.uri}`).then(
-        (arrayBuffer: ArrayBuffer) => {
+      return fetch(`${dir}/${buffer.uri}`)
+        .then((response) => response.arrayBuffer())
+        .then((arrayBuffer: ArrayBuffer) => {
           buffers[index] = arrayBuffer;
-        }
-      );
+        });
     })
   );
 
@@ -299,10 +297,10 @@ async function loadGLTFObject(
 export async function loadGLTF(url: string) {
   const ext = url.split('.').pop();
   if (ext === 'gltf') {
-    const json = await loadJson(url);
+    const json = await fetch(url).then((response) => response.json());
     return loadGLTFObject(json, url);
   }
-  const glb = await loadBuffer(url);
+  const glb = await fetch(url).then((response) => response.arrayBuffer());
   const jsonLength = new Uint32Array(glb, 12, 1)[0];
   const jsonChunk = new Uint8Array(glb, 20, jsonLength);
   const json = JSON.parse(new TextDecoder('utf-8').decode(jsonChunk));
