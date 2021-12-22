@@ -233,7 +233,11 @@ async function loadGLTFObject(
     loadExternalImages = Promise.all(
       json.images.map(async (image: any, index: number) => {
         if (image.uri) {
-          images[index] = await fetch(`${dir}/${image.uri}`)
+          const imageUrl =
+            image.uri.slice(0, 5) === 'data:'
+              ? image.uri
+              : `${dir}/${image.uri}`;
+          images[index] = await fetch(imageUrl)
             .then((response) => response.blob())
             .then((blob) =>
               createImageBitmap(blob, {
@@ -255,7 +259,11 @@ async function loadGLTFObject(
         buffers[index] = bin!;
         return Promise.resolve();
       }
-      return fetch(`${dir}/${buffer.uri}`)
+      const bufferUrl =
+        buffer.uri.slice(0, 5) === 'data:'
+          ? buffer.uri
+          : `${dir}/${buffer.uri}`;
+      return fetch(bufferUrl)
         .then((response) => response.arrayBuffer())
         .then((arrayBuffer: ArrayBuffer) => {
           buffers[index] = arrayBuffer;

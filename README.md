@@ -23,7 +23,7 @@ This is a physically-based rendering engine for loading and displaying glTF 2.0 
 ### Formats
 
 - [x] glTF
-- [ ] glTF-Embedded
+- [x] glTF-Embedded
 - [x] glTF-Binary
 
 ### glTF 2.0 Core Features
