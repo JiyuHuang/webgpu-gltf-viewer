@@ -21,7 +21,7 @@ export type TypedArray =
   | Float32Array;
 
 export function newTypedArray(
-  type: string | number,
+  type: number,
   buffer: ArrayBuffer,
   byteOffset: number,
   length: number
@@ -286,6 +286,12 @@ export const gltfEnum: { [key: string]: string | number } = {
   MAT2: 4,
   MAT3: 9,
   MAT4: 16,
+  5120: 1,
+  5121: 1,
+  5122: 2,
+  5123: 2,
+  5125: 4,
+  5126: 4,
   9728: 'nearest',
   9729: 'linear',
   9984: 'linear',

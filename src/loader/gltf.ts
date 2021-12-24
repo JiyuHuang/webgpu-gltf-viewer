@@ -103,14 +103,11 @@ export class GLTF {
       : [];
     const defaultMaterial = { pbrMetallicRoughness: {} };
 
-    const accessors = (json.accessors as Array<any>).map((accessor) => {
-      const n = gltfEnum[accessor.type] as number;
+    function getBufferView(accessor: any, n: number) {
       const bufferView = json.bufferViews[accessor.bufferView];
       const offset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
-      let stride = bufferView.byteStride / 4;
-      stride = stride > n ? stride : n;
-
-      const array = newTypedArray(
+      const stride = Math.max(bufferView.byteStride / 4 || 0, n);
+      let array = newTypedArray(
         accessor.componentType,
         buffers[bufferView.buffer],
         bufferView.buffer === 0 ? offset + glbOffset : offset,
@@ -127,8 +124,40 @@ export class GLTF {
             strided[i + k] = array[j + k];
           }
         }
-        return strided;
+        array = strided;
       }
+      return array;
+    }
+
+    const accessors = (json.accessors as Array<any>).map((accessor) => {
+      const n = gltfEnum[accessor.type] as number;
+      let array;
+      if (accessor.bufferView === undefined) {
+        array = newTypedArray(
+          accessor.componentType,
+          new ArrayBuffer(
+            n * accessor.count * (gltfEnum[accessor.componentType] as number)
+          ),
+          0,
+          accessor.count * n
+        );
+      } else {
+        array = getBufferView(accessor, n);
+      }
+
+      if (accessor.sparse) {
+        accessor.sparse.indices.count = accessor.sparse.count;
+        accessor.sparse.values.count = accessor.sparse.count;
+        accessor.sparse.values.componentType = accessor.componentType;
+        const indices = getBufferView(accessor.sparse.indices, 1);
+        const values = getBufferView(accessor.sparse.values, n);
+        for (let i = 0; i < accessor.sparse.count; i += 1) {
+          for (let j = 0; j < n; j += 1) {
+            array[indices[i] * n + j] = values[i * n + j];
+          }
+        }
+      }
+
       return array;
     });
 
