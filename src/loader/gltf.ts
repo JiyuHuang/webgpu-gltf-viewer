@@ -4,7 +4,7 @@ import {
   getTextures,
   gltfEnum,
   newTypedArray,
-  toIndexArray,
+  toIndices,
   TypedArray,
 } from '../util';
 
@@ -171,7 +171,7 @@ export class GLTF {
         let indices = null;
         let vertexCount;
         if (primitive.indices !== undefined) {
-          indices = toIndexArray(accessors[primitive.indices]);
+          indices = toIndices(accessors[primitive.indices]);
           vertexCount = json.accessors[primitive.indices].count;
         } else {
           vertexCount = json.accessors[primitive.attributes.POSITION].count;

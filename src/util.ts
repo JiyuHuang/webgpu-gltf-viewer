@@ -44,7 +44,7 @@ export function newTypedArray(
   }
 }
 
-export function toIndexArray(array: TypedArray): Uint16Array | Uint32Array {
+export function toIndices(array: TypedArray): Uint16Array | Uint32Array {
   if (array instanceof Uint16Array || array instanceof Uint32Array) {
     return array;
   }
@@ -228,7 +228,7 @@ function lerp(a: number, b: number, x: number) {
 
 export function interpQuat(
   input: TypedArray,
-  output: TypedArray,
+  o: TypedArray,
   time: number,
   method: string
 ) {
@@ -238,12 +238,31 @@ export function interpQuat(
   }
   const t = lerp(input[index - 1], input[index], time);
 
+  if (method === 'CUBICSPLINE') {
+    const td = input[index] - input[index - 1];
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const i = 12 * index;
+    const v0 = quat.fromValues(o[i - 8], o[i - 7], o[i - 6], o[i - 5]);
+    const b0 = quat.fromValues(o[i - 4], o[i - 3], o[i - 2], o[i - 1]);
+    const v1 = quat.fromValues(o[i + 4], o[i + 5], o[i + 6], o[i + 7]);
+    const a1 = quat.fromValues(o[i], o[i + 1], o[i + 2], o[i + 3]);
+    quat.scale(v0, v0, 2 * t3 - 3 * t2 + 1);
+    quat.scale(b0, b0, td * (t3 - 2 * t2 + t));
+    quat.scale(v1, v1, -2 * t3 + 3 * t2);
+    quat.scale(a1, a1, td * (t3 - t2));
+    const result = quat.create();
+    quat.add(result, result, v0);
+    quat.add(result, result, b0);
+    quat.add(result, result, v1);
+    quat.add(result, result, a1);
+    return quat.normalize(result, result);
+  }
+
   const q = [];
   for (let n = -1; n < 1; n += 1) {
     const i = 4 * (index + n);
-    q.push(
-      quat.fromValues(output[i], output[i + 1], output[i + 2], output[i + 3])
-    );
+    q.push(quat.fromValues(o[i], o[i + 1], o[i + 2], o[i + 3]));
   }
 
   if (method === 'STEP') {
@@ -264,6 +283,27 @@ export function interpVec3(
     index += 1;
   }
   const t = lerp(input[index - 1], input[index], time);
+
+  if (method === 'CUBICSPLINE') {
+    const td = input[index] - input[index - 1];
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const i = 9 * index;
+    const v0 = vec3.fromValues(output[i - 6], output[i - 5], output[i - 4]);
+    const b0 = vec3.fromValues(output[i - 3], output[i - 2], output[i - 1]);
+    const v1 = vec3.fromValues(output[i + 3], output[i + 4], output[i + 5]);
+    const a1 = vec3.fromValues(output[i], output[i + 1], output[i + 2]);
+    vec3.scale(v0, v0, 2 * t3 - 3 * t2 + 1);
+    vec3.scale(b0, b0, td * (t3 - 2 * t2 + t));
+    vec3.scale(v1, v1, -2 * t3 + 3 * t2);
+    vec3.scale(a1, a1, td * (t3 - t2));
+    const result = vec3.create();
+    vec3.add(result, result, v0);
+    vec3.add(result, result, b0);
+    vec3.add(result, result, v1);
+    vec3.add(result, result, a1);
+    return result;
+  }
 
   const v = [];
   for (let n = -1; n < 1; n += 1) {

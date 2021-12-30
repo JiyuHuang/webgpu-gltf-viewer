@@ -29,7 +29,7 @@ This is a physically-based rendering engine for loading and displaying glTF 2.0 
 ### glTF 2.0 Core Features
 
 - [x] Accessors
-  - [ ] Sparse Accessors
+  - [x] Sparse Accessors
 - [x] Buffers and Buffer Views
 - [x] Cameras
   - [x] Perspective
@@ -45,7 +45,7 @@ This is a physically-based rendering engine for loading and displaying glTF 2.0 
 - [x] Scenes
 - [x] Textures
 - [x] Animations
-  - [ ] Cubic Spline Interpolation
+  - [ ] Weights
 - [ ] Skins
 
 ### Extensions
