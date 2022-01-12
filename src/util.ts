@@ -251,7 +251,7 @@ export function interpQuat(
     quat.scale(b0, b0, td * (t3 - 2 * t2 + t));
     quat.scale(v1, v1, -2 * t3 + 3 * t2);
     quat.scale(a1, a1, td * (t3 - t2));
-    const result = quat.create();
+    const result = quat.fromValues(0, 0, 0, 0);
     quat.add(result, result, v0);
     quat.add(result, result, b0);
     quat.add(result, result, v1);
