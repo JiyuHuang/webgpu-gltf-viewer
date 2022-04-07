@@ -45,10 +45,10 @@ export class Renderer {
       colorAttachments: [],
       depthStencilAttachment: {
         view: depthTexture.createView(),
-        depthLoadValue: 1.0,
+        depthLoadOp: 'clear',
+        depthClearValue: 1.0,
         depthStoreOp: 'store',
-        stencilLoadValue: 0,
-        stencilStoreOp: 'store',
+        stencilClearValue: 0
       },
     };
 
@@ -83,8 +83,9 @@ export class Renderer {
       this.renderPassDesc.colorAttachments = [
         {
           view: this.context.getCurrentTexture().createView(),
-          loadValue: { r: 0.3, g: 0.5, b: 0.7, a: 1 },
-          storeOp: 'store',
+          clearValue: { r: 0.3, g: 0.5, b: 0.7, a: 1 },
+          loadOp: 'clear',
+          storeOp: 'store'
         },
       ];
       const passEncoder = commandEncoder.beginRenderPass(this.renderPassDesc);
@@ -106,7 +107,7 @@ export class Renderer {
         });
       });
 
-      passEncoder.endPass();
+      passEncoder.end();
       this.device.queue.submit([commandEncoder.finish()]);
 
       this.stats.end();
@@ -169,6 +170,7 @@ export async function createRenderer(canvas: HTMLCanvasElement) {
       canvas.clientWidth * devicePixelRatio,
       canvas.clientHeight * devicePixelRatio,
     ],
+    compositingAlphaMode: 'opaque'
   });
   return new Renderer(canvas, device, context!, format);
 }
